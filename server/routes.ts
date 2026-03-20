@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
-import { insertDestinationSchema, insertTaskSchema, insertTripSchema, insertTripTaskSchema, insertDeadlineSchema, insertDeadlineCategorySchema, insertTdlTaskSchema, insertFriendSchema } from "@shared/schema";
+import { insertDestinationSchema, insertTaskSchema, insertTripSchema, insertTripTaskSchema, insertDeadlineSchema, insertDeadlineCategorySchema, insertTdlTaskSchema, insertFriendSchema, insertPlaceSchema } from "@shared/schema";
 import { deadlines, deadlineCategories, destinations, tasks, trips, tripTasks, tdlTasks } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
@@ -534,6 +534,24 @@ export async function registerRoutes(
 
   app.delete("/api/friends/:id", async (req, res) => {
     await storage.deleteFriend(req.params.id);
+    res.status(204).send();
+  });
+
+  // Places
+  app.get("/api/places", async (_req, res) => {
+    const rows = await storage.getPlaces();
+    res.json(rows);
+  });
+
+  app.post("/api/places", async (req, res) => {
+    const parsed = insertPlaceSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const created = await storage.createPlace(parsed.data);
+    res.status(201).json(created);
+  });
+
+  app.delete("/api/places/:id", async (req, res) => {
+    await storage.deletePlace(req.params.id);
     res.status(204).send();
   });
 

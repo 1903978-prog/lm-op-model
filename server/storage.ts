@@ -7,7 +7,8 @@ import {
   type DeadlineCategory, type InsertDeadlineCategory,
   type TdlTask, type InsertTdlTask,
   type Friend, type InsertFriend,
-  destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, tdlTasks, friends,
+  type Place, type InsertPlace,
+  destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, tdlTasks, friends, places,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -61,6 +62,10 @@ export interface IStorage {
   createFriend(friend: InsertFriend): Promise<Friend>;
   updateFriend(id: string, data: Partial<InsertFriend>): Promise<Friend | undefined>;
   deleteFriend(id: string): Promise<void>;
+
+  getPlaces(): Promise<Place[]>;
+  createPlace(place: InsertPlace): Promise<Place>;
+  deletePlace(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -229,6 +234,19 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFriend(id: string): Promise<void> {
     await db.delete(friends).where(eq(friends.id, id));
+  }
+
+  async getPlaces(): Promise<Place[]> {
+    return db.select().from(places).orderBy(places.name);
+  }
+
+  async createPlace(place: InsertPlace): Promise<Place> {
+    const [created] = await db.insert(places).values(place).returning();
+    return created;
+  }
+
+  async deletePlace(id: string): Promise<void> {
+    await db.delete(places).where(eq(places.id, id));
   }
 }
 

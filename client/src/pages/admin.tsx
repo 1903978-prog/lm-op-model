@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Destination, Task, DeadlineCategory, Friend } from "@shared/schema";
+import type { Destination, Task, DeadlineCategory, Friend, Place } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -575,36 +575,102 @@ function CategoryManager() {
   );
 }
 
+function PlaceManager() {
+  const { toast } = useToast();
+  const [newPlace, setNewPlace] = useState("");
+
+  const { data: placesList, isLoading } = useQuery<Place[]>({
+    queryKey: ["/api/places"],
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/places", { name: newPlace.trim() });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/places"] });
+      setNewPlace("");
+      toast({ title: "Place added" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/places/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/places"] });
+      toast({ title: "Place removed" });
+    },
+  });
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Locations</h4>
+      <div className="flex gap-2">
+        <Input
+          value={newPlace}
+          onChange={(e) => setNewPlace(e.target.value)}
+          placeholder="e.g. Singapore"
+          className="flex-1 h-8 text-sm"
+          onKeyDown={(e) => { if (e.key === "Enter" && newPlace.trim()) createMutation.mutate(); }}
+        />
+        <Button size="sm" disabled={!newPlace.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
+          <Plus className="w-3.5 h-3.5 mr-1" />Add
+        </Button>
+      </div>
+      {isLoading ? <Skeleton className="h-20 w-full" /> : (
+        <div className="flex flex-wrap gap-1.5">
+          {(placesList ?? []).map((p) => (
+            <div key={p.id} className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted/60 text-sm">
+              <MapPin className="w-3 h-3 text-muted-foreground" />
+              <span>{p.name}</span>
+              <button type="button" onClick={() => deleteMutation.mutate(p.id)} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          {(placesList ?? []).length === 0 && <p className="text-xs text-muted-foreground">No locations yet.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FriendManager() {
   const { toast } = useToast();
   const { data: friendsList, isLoading } = useQuery<Friend[]>({
     queryKey: ["/api/friends"],
   });
+  const { data: placesList } = useQuery<Place[]>({
+    queryKey: ["/api/places"],
+  });
 
   // Add new friend
   const [addingOpen, setAddingOpen] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newLocation, setNewLocation] = useState("");
+  const [newLocation, setNewLocation] = useState("__none__");
   const [newKeepInTouch, setNewKeepInTouch] = useState(true);
 
   // Edit existing friend
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [editLocation, setEditLocation] = useState("");
+  const [editLocation, setEditLocation] = useState("__none__");
   const [editKeepInTouch, setEditKeepInTouch] = useState(true);
 
   const addMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/friends", {
         name: newName.trim(),
-        location: newLocation.trim() || null,
+        location: newLocation === "__none__" ? null : newLocation,
         keepInTouch: newKeepInTouch,
         lastSpoke: new Date().toISOString().slice(0, 7) + "-01",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
-      setNewName(""); setNewLocation(""); setNewKeepInTouch(true); setAddingOpen(false);
+      setNewName(""); setNewLocation("__none__"); setNewKeepInTouch(true); setAddingOpen(false);
       toast({ title: "Friend added" });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -614,7 +680,7 @@ function FriendManager() {
     mutationFn: async ({ id, name, location, keepInTouch }: { id: string; name: string; location: string; keepInTouch: boolean }) => {
       await apiRequest("PATCH", `/api/friends/${id}`, {
         name: name.trim(),
-        location: location.trim() || null,
+        location: location === "__none__" ? null : location,
         keepInTouch,
       });
     },
@@ -638,6 +704,8 @@ function FriendManager() {
 
   if (isLoading) return <Skeleton className="h-32 w-full" />;
 
+  const places = placesList ?? [];
+
   // Group by location for display
   const list = friendsList ?? [];
   const groups: Record<string, Friend[]> = {};
@@ -652,6 +720,10 @@ function FriendManager() {
 
   return (
     <div className="space-y-6">
+      <PlaceManager />
+
+      <div className="border-t pt-4" />
+
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Friends</h3>
         <Button size="sm" onClick={() => setAddingOpen(true)}>
@@ -670,7 +742,17 @@ function FriendManager() {
             </div>
             <div className="space-y-1.5">
               <Label>Location</Label>
-              <Input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="e.g. Dubai" />
+              <Select value={newLocation} onValueChange={setNewLocation}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— No location —</SelectItem>
+                  {places.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center gap-3">
               <Switch checked={newKeepInTouch} onCheckedChange={setNewKeepInTouch} />
@@ -694,7 +776,17 @@ function FriendManager() {
                 {editingId === f.id ? (
                   <div className="space-y-2">
                     <Input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="h-8 text-sm" />
-                    <Input value={editLocation} onChange={(e) => setEditLocation(e.target.value)} placeholder="Location (e.g. Dubai)" className="h-8 text-sm" />
+                    <Select value={editLocation} onValueChange={setEditLocation}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— No location —</SelectItem>
+                        {places.map((p) => (
+                          <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <div className="flex items-center gap-2">
                       <Switch checked={editKeepInTouch} onCheckedChange={setEditKeepInTouch} />
                       <span className="text-xs">Keep in touch</span>
@@ -713,7 +805,7 @@ function FriendManager() {
                   <div className="flex items-center gap-3">
                     <span className={`w-2 h-2 rounded-full shrink-0 ${f.keepInTouch ? "bg-green-500" : "bg-muted-foreground/40"}`} title={f.keepInTouch ? "Keep in touch" : "Not tracked"} />
                     <span className="flex-1 text-sm font-medium truncate">{f.name}</span>
-                    <button type="button" onClick={() => { setEditingId(f.id); setEditName(f.name); setEditLocation(f.location ?? ""); setEditKeepInTouch(f.keepInTouch ?? true); }}
+                    <button type="button" onClick={() => { setEditingId(f.id); setEditName(f.name); setEditLocation(f.location ?? "__none__"); setEditKeepInTouch(f.keepInTouch ?? true); }}
                       className="text-muted-foreground hover:text-foreground transition-colors">
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>

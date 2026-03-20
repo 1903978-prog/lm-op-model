@@ -1,5 +1,5 @@
 import { db } from "./storage";
-import { destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, friends, tdlTasks } from "@shared/schema";
+import { destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, friends, tdlTasks, places } from "@shared/schema";
 
 export async function seedDatabase() {
   // ── Destinations ──────────────────────────────────────────────────────────
@@ -173,5 +173,21 @@ export async function seedDatabase() {
       { id: "03b447fd-08ba-415e-beb8-47600866ed73", title: "Camicia nera e giacca Dubai", priority: 3, done: false },
     ]);
     console.log("[seed] Inserted TDL tasks");
+  }
+
+  // ── Places ────────────────────────────────────────────────────────────────
+  const existingPlaces = await db.select().from(places);
+  if (existingPlaces.length === 0) {
+    await db.insert(places).values([
+      { name: "Dubai" },
+      { name: "Estonia" },
+      { name: "France" },
+      { name: "Italy" },
+      { name: "Romania" },
+      { name: "Russia" },
+      { name: "Thailand" },
+      { name: "UK" },
+    ]);
+    console.log("[seed] Inserted places");
   }
 }

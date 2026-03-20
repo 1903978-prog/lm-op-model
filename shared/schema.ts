@@ -94,6 +94,15 @@ export const insertFriendSchema = createInsertSchema(friends).omit({ id: true })
 export type InsertFriend = z.infer<typeof insertFriendSchema>;
 export type Friend = typeof friends.$inferSelect;
 
+export const places = pgTable("places", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+});
+
+export const insertPlaceSchema = createInsertSchema(places).omit({ id: true });
+export type InsertPlace = z.infer<typeof insertPlaceSchema>;
+export type Place = typeof places.$inferSelect;
+
 export const tdlTasks = pgTable("tdl_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
