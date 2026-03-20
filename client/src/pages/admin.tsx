@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Destination, Task, DeadlineCategory } from "@shared/schema";
+import type { Destination, Task, DeadlineCategory, Friend } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -575,6 +575,92 @@ function CategoryManager() {
   );
 }
 
+function FriendManager() {
+  const { toast } = useToast();
+  const { data: friendsList, isLoading } = useQuery<Friend[]>({
+    queryKey: ["/api/friends"],
+  });
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLocation, setEditingLocation] = useState("");
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, location }: { id: string; location: string }) => {
+      await apiRequest("PATCH", `/api/friends/${id}`, { location: location.trim() || null });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      setEditingId(null);
+      toast({ title: "Location updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  if (isLoading) return <Skeleton className="h-32 w-full" />;
+  if (!friendsList || friendsList.length === 0) return <p className="text-sm text-muted-foreground">No friends yet.</p>;
+
+  // Group by location for display
+  const groups: Record<string, Friend[]> = {};
+  for (const f of friendsList) {
+    const key = f.location?.trim() || "No location";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(f);
+  }
+  const sortedKeys = Object.keys(groups).sort((a, b) =>
+    a === "No location" ? 1 : b === "No location" ? -1 : a.localeCompare(b)
+  );
+
+  return (
+    <div className="space-y-6">
+      <h3 className="font-semibold">Friends — Set Location</h3>
+      {sortedKeys.map((loc) => (
+        <div key={loc}>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{loc}</p>
+          <div className="space-y-1.5">
+            {groups[loc].map((f) => (
+              <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/50">
+                <span className="flex-1 text-sm font-medium truncate">{f.name}</span>
+                {editingId === f.id ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      autoFocus
+                      placeholder="e.g. Dubai"
+                      value={editingLocation}
+                      onChange={(e) => setEditingLocation(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") updateMutation.mutate({ id: f.id, location: editingLocation });
+                        if (e.key === "Escape") setEditingId(null);
+                      }}
+                      className="h-7 text-sm w-36"
+                    />
+                    <Button size="sm" className="h-7 px-2" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate({ id: f.id, location: editingLocation })}>
+                      <Check className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingId(null)}>
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setEditingId(f.id); setEditingLocation(f.location ?? ""); }}
+                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                    {f.location || "set location"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Admin() {
   const { toast } = useToast();
 
@@ -653,6 +739,7 @@ export default function Admin() {
             <TabsTrigger value="tasks" data-testid="tab-tasks">Tasks</TabsTrigger>
             <TabsTrigger value="destinations" data-testid="tab-destinations">Destinations</TabsTrigger>
             <TabsTrigger value="categories" data-testid="tab-categories">Categories</TabsTrigger>
+            <TabsTrigger value="friends">Friends</TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks">
@@ -675,6 +762,14 @@ export default function Admin() {
             <Card>
               <CardContent className="pt-6">
                 <CategoryManager />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="friends">
+            <Card>
+              <CardContent className="pt-6">
+                <FriendManager />
               </CardContent>
             </Card>
           </TabsContent>

@@ -599,45 +599,54 @@ function FriendsBox() {
             {!isLoading && (!friendsList || friendsList.length === 0) && !adding && (
               <p className="text-xs text-muted-foreground py-2">No friends yet.</p>
             )}
-            <div className="space-y-0.5">
-              {(friendsList ?? []).map((f) => (
+            {(() => {
+              const list = friendsList ?? [];
+              // Group by location
+              const groups: Record<string, typeof list> = {};
+              for (const f of list) {
+                const key = f.location?.trim() || "—";
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(f);
+              }
+              const sortedKeys = Object.keys(groups).sort((a, b) =>
+                a === "—" ? 1 : b === "—" ? -1 : a.localeCompare(b)
+              );
+
+              const FriendRow = ({ f }: { f: typeof list[0] }) => (
                 <div
                   key={f.id}
                   className="group flex items-center gap-2 py-1.5 px-1 rounded hover:bg-muted/50 transition-colors"
                   data-testid={`row-friend-${f.id}`}
                 >
                   {isOlderThan3Months(f.lastSpoke) && (
-                    <span
-                      className="w-2 h-2 rounded-sm bg-orange-400 shrink-0"
-                      title="No contact for over 3 months"
-                      data-testid={`dot-overdue-${f.id}`}
-                    />
+                    <span className="w-2 h-2 rounded-sm bg-orange-400 shrink-0" title="No contact for over 3 months" data-testid={`dot-overdue-${f.id}`} />
                   )}
                   <span className="flex-1 text-sm truncate">{f.name}</span>
                   <span className="text-xs text-muted-foreground font-mono shrink-0 tabular-nums" data-testid={`text-lastspoke-${f.id}`}>
                     {formatLastSpoke(f.lastSpoke)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => spokeMutation.mutate(f.id)}
-                    disabled={spokeMutation.isPending}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-0.5 rounded bg-green-500 text-white hover:bg-green-600 shrink-0"
-                    data-testid={`button-spoke-${f.id}`}
-                    title="Spoke today"
-                  >
+                  <button type="button" onClick={() => spokeMutation.mutate(f.id)} disabled={spokeMutation.isPending} className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-0.5 rounded bg-green-500 text-white hover:bg-green-600 shrink-0" data-testid={`button-spoke-${f.id}`} title="Spoke today">
                     ✓ Today
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteMutation.mutate(f.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0"
-                    data-testid={`button-delete-friend-${f.id}`}
-                  >
+                  <button type="button" onClick={() => deleteMutation.mutate(f.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive shrink-0" data-testid={`button-delete-friend-${f.id}`}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              ))}
-            </div>
+              );
+
+              return (
+                <div className="space-y-3">
+                  {sortedKeys.map((loc) => (
+                    <div key={loc}>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-0.5">{loc}</p>
+                      <div className="space-y-0.5">
+                        {groups[loc].map((f) => <FriendRow key={f.id} f={f} />)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         )}
 

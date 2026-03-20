@@ -86,6 +86,7 @@ export const friends = pgTable("friends", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   lastSpoke: date("last_spoke").notNull().default("2023-12-01"),
+  location: text("location"),
 });
 
 export const insertFriendSchema = createInsertSchema(friends).omit({ id: true });
