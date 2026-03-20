@@ -87,6 +87,7 @@ export const friends = pgTable("friends", {
   name: text("name").notNull(),
   lastSpoke: date("last_spoke").notNull().default("2023-12-01"),
   location: text("location"),
+  keepInTouch: boolean("keep_in_touch").notNull().default(true),
 });
 
 export const insertFriendSchema = createInsertSchema(friends).omit({ id: true });

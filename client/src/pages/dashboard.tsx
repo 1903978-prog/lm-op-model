@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Link } from "wouter";
-import { Plane, Calendar, Trash2, MapPin, AlertTriangle, BellRing, CalendarClock, Mail, Thermometer, TrendingUp, TrendingDown, Newspaper, Download, Plus, ListTodo, RotateCcw, EyeOff, CheckCircle2, Users, ChevronDown, ChevronRight } from "lucide-react";
+import { Plane, Calendar, Trash2, MapPin, AlertTriangle, BellRing, CalendarClock, Mail, Thermometer, TrendingUp, TrendingDown, Newspaper, Download, Plus, ListTodo, RotateCcw, EyeOff, CheckCircle2, Users, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -625,6 +625,14 @@ function FriendsBox() {
                   <span className="text-xs text-muted-foreground font-mono shrink-0 tabular-nums" data-testid={`text-lastspoke-${f.id}`}>
                     {formatLastSpoke(f.lastSpoke)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => apiRequest("PATCH", `/api/friends/${f.id}`, { keepInTouch: !f.keepInTouch }).then(() => queryClient.invalidateQueries({ queryKey: ["/api/friends"] }))}
+                    title={f.keepInTouch ? "In touch — click to disable" : "Not in touch — click to enable"}
+                    className={`shrink-0 text-xs px-1.5 py-0.5 rounded transition-colors ${f.keepInTouch ? "bg-green-500/20 text-green-600 hover:bg-green-500/30" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+                  >
+                    {f.keepInTouch ? "✓" : "—"}
+                  </button>
                   <button type="button" onClick={() => spokeMutation.mutate(f.id)} disabled={spokeMutation.isPending} className="opacity-0 group-hover:opacity-100 transition-opacity text-xs px-2 py-0.5 rounded bg-green-500 text-white hover:bg-green-600 shrink-0" data-testid={`button-spoke-${f.id}`} title="Spoke today">
                     ✓ Today
                   </button>
@@ -1212,6 +1220,7 @@ type MacroItem = { name: string; value: number | null; currency: string; changeP
 type Alert = { title: string; pubDate: string | null };
 
 const DAILY = 1000 * 60 * 60 * 24;
+const RETRY_INTERVAL = 30_000; // 30s — keeps fetching until data arrives
 
 function ChangeBadge({ changePercent }: { changePercent: number | null }) {
   if (changePercent == null) return null;
@@ -1229,13 +1238,27 @@ function SidebarSection({ label }: { label: string }) {
 }
 
 function InfoSidebar() {
-  const { data: weatherData } = useQuery<WeatherCity[]>({ queryKey: ["/api/weather"], staleTime: DAILY, refetchInterval: DAILY });
-  const { data: stockData }   = useQuery<StockQuote[]>({ queryKey: ["/api/stocks"],  staleTime: DAILY, refetchInterval: DAILY });
-  const { data: forexData }   = useQuery<ForexRate[]>({ queryKey: ["/api/forex"],   staleTime: DAILY, refetchInterval: DAILY });
-  const { data: macroData }   = useQuery<MacroItem[]>({ queryKey: ["/api/macro"],   staleTime: DAILY, refetchInterval: DAILY });
-  const { data: alertsData }  = useQuery<Alert[]>({     queryKey: ["/api/alerts"],  staleTime: DAILY, refetchInterval: DAILY });
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { data: weatherData } = useQuery<WeatherCity[]>({ queryKey: ["/api/weather"], staleTime: DAILY, refetchInterval: (q) => (q.state.data && q.state.data.length > 0) ? DAILY : RETRY_INTERVAL });
+  const { data: stockData }   = useQuery<StockQuote[]>({ queryKey: ["/api/stocks"],  staleTime: DAILY, refetchInterval: (q) => (q.state.data && q.state.data.length > 0) ? DAILY : RETRY_INTERVAL });
+  const { data: forexData }   = useQuery<ForexRate[]>({ queryKey: ["/api/forex"],   staleTime: DAILY, refetchInterval: (q) => (q.state.data && q.state.data.length > 0) ? DAILY : RETRY_INTERVAL });
+  const { data: macroData }   = useQuery<MacroItem[]>({ queryKey: ["/api/macro"],   staleTime: DAILY, refetchInterval: (q) => (q.state.data && q.state.data.length > 0) ? DAILY : RETRY_INTERVAL });
+  const { data: alertsData }  = useQuery<Alert[]>({     queryKey: ["/api/alerts"],  staleTime: DAILY, refetchInterval: (q) => (q.state.data && q.state.data.length > 0) ? DAILY : RETRY_INTERVAL });
   const { data: trips }       = useQuery<Trip[]>({        queryKey: ["/api/trips"] });
   const { data: destinations }= useQuery<Destination[]>({ queryKey: ["/api/destinations"] });
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/weather"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/stocks"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/forex"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/macro"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/alerts"] }),
+    ]);
+    setRefreshing(false);
+  }
 
   const upcomingTrips = trips
     ?.filter((t) => differenceInDays(new Date(t.arrivalDate), new Date()) >= 0)
@@ -1255,6 +1278,18 @@ function InfoSidebar() {
 
   return (
     <aside className="w-[352px] flex-shrink-0 border-r bg-muted/20 overflow-y-auto flex flex-col" data-testid="info-sidebar">
+      <div className="flex items-center justify-between px-3 pt-2 pb-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live Data</span>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          title="Refresh all data"
+          className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
+      </div>
       <div className="p-3 space-y-1">
 
         {/* Weather */}
@@ -1537,7 +1572,7 @@ export default function Dashboard() {
         {/* Scrollable content — each column scrolls independently */}
         <div className="flex-1 overflow-hidden pl-3 pr-6 pb-6 min-h-0 flex flex-col gap-4">
           {isLoading ? (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
               <div className="space-y-4">
                 <Skeleton className="h-56 w-full" />
                 <Skeleton className="h-48 w-full" />
@@ -1545,7 +1580,7 @@ export default function Dashboard() {
               <Skeleton className="h-full w-full" />
             </div>
           ) : !trips || trips.length === 0 ? (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
               <div className="overflow-y-auto min-h-0 space-y-4 pr-1">
                 <TDLTile />
                 <FriendsBox />
@@ -1566,7 +1601,7 @@ export default function Dashboard() {
               </Card>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
               {/* Left column — TDL at top, then trip actions below */}
               <div className="overflow-y-auto space-y-4 min-h-0 pr-1">
                 <TDLTile />

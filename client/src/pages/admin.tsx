@@ -581,29 +581,67 @@ function FriendManager() {
     queryKey: ["/api/friends"],
   });
 
+  // Add new friend
+  const [addingOpen, setAddingOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newKeepInTouch, setNewKeepInTouch] = useState(true);
+
+  // Edit existing friend
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingLocation, setEditingLocation] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editKeepInTouch, setEditKeepInTouch] = useState(true);
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/friends", {
+        name: newName.trim(),
+        location: newLocation.trim() || null,
+        keepInTouch: newKeepInTouch,
+        lastSpoke: new Date().toISOString().slice(0, 7) + "-01",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      setNewName(""); setNewLocation(""); setNewKeepInTouch(true); setAddingOpen(false);
+      toast({ title: "Friend added" });
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, location }: { id: string; location: string }) => {
-      await apiRequest("PATCH", `/api/friends/${id}`, { location: location.trim() || null });
+    mutationFn: async ({ id, name, location, keepInTouch }: { id: string; name: string; location: string; keepInTouch: boolean }) => {
+      await apiRequest("PATCH", `/api/friends/${id}`, {
+        name: name.trim(),
+        location: location.trim() || null,
+        keepInTouch,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
       setEditingId(null);
-      toast({ title: "Location updated" });
+      toast({ title: "Friend updated" });
     },
-    onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/friends/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      toast({ title: "Friend removed" });
     },
   });
 
   if (isLoading) return <Skeleton className="h-32 w-full" />;
-  if (!friendsList || friendsList.length === 0) return <p className="text-sm text-muted-foreground">No friends yet.</p>;
 
   // Group by location for display
+  const list = friendsList ?? [];
   const groups: Record<string, Friend[]> = {};
-  for (const f of friendsList) {
+  for (const f of list) {
     const key = f.location?.trim() || "No location";
     if (!groups[key]) groups[key] = [];
     groups[key].push(f);
@@ -614,43 +652,75 @@ function FriendManager() {
 
   return (
     <div className="space-y-6">
-      <h3 className="font-semibold">Friends — Set Location</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Friends</h3>
+        <Button size="sm" onClick={() => setAddingOpen(true)}>
+          <Plus className="w-4 h-4 mr-1" />Add
+        </Button>
+      </div>
+
+      {/* Add dialog */}
+      <Dialog open={addingOpen} onOpenChange={setAddingOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add Friend</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. Marco" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Location</Label>
+              <Input value={newLocation} onChange={(e) => setNewLocation(e.target.value)} placeholder="e.g. Dubai" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch checked={newKeepInTouch} onCheckedChange={setNewKeepInTouch} />
+              <Label>Keep in touch</Label>
+            </div>
+            <Button className="w-full" disabled={!newName.trim() || addMutation.isPending} onClick={() => addMutation.mutate()}>
+              {addMutation.isPending ? "Adding…" : "Add Friend"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {list.length === 0 && <p className="text-sm text-muted-foreground">No friends yet.</p>}
+
       {sortedKeys.map((loc) => (
         <div key={loc}>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{loc}</p>
           <div className="space-y-1.5">
             {groups[loc].map((f) => (
-              <div key={f.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/50">
-                <span className="flex-1 text-sm font-medium truncate">{f.name}</span>
+              <div key={f.id} className="p-2.5 rounded-md bg-muted/50 space-y-2">
                 {editingId === f.id ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      autoFocus
-                      placeholder="e.g. Dubai"
-                      value={editingLocation}
-                      onChange={(e) => setEditingLocation(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") updateMutation.mutate({ id: f.id, location: editingLocation });
-                        if (e.key === "Escape") setEditingId(null);
-                      }}
-                      className="h-7 text-sm w-36"
-                    />
-                    <Button size="sm" className="h-7 px-2" disabled={updateMutation.isPending} onClick={() => updateMutation.mutate({ id: f.id, location: editingLocation })}>
-                      <Check className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingId(null)}>
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
+                  <div className="space-y-2">
+                    <Input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Name" className="h-8 text-sm" />
+                    <Input value={editLocation} onChange={(e) => setEditLocation(e.target.value)} placeholder="Location (e.g. Dubai)" className="h-8 text-sm" />
+                    <div className="flex items-center gap-2">
+                      <Switch checked={editKeepInTouch} onCheckedChange={setEditKeepInTouch} />
+                      <span className="text-xs">Keep in touch</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" className="h-7 px-3" disabled={updateMutation.isPending}
+                        onClick={() => updateMutation.mutate({ id: f.id, name: editName, location: editLocation, keepInTouch: editKeepInTouch })}>
+                        <Check className="w-3.5 h-3.5 mr-1" />Save
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingId(null)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => { setEditingId(f.id); setEditingLocation(f.location ?? ""); }}
-                    className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Edit2 className="w-3 h-3" />
-                    {f.location || "set location"}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${f.keepInTouch ? "bg-green-500" : "bg-muted-foreground/40"}`} title={f.keepInTouch ? "Keep in touch" : "Not tracked"} />
+                    <span className="flex-1 text-sm font-medium truncate">{f.name}</span>
+                    <button type="button" onClick={() => { setEditingId(f.id); setEditName(f.name); setEditLocation(f.location ?? ""); setEditKeepInTouch(f.keepInTouch ?? true); }}
+                      className="text-muted-foreground hover:text-foreground transition-colors">
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button type="button" onClick={() => deleteMutation.mutate(f.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
