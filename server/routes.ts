@@ -393,6 +393,14 @@ export async function registerRoutes(
     res.status(201).json(trip);
   });
 
+  app.patch("/api/trips/:id", async (req, res) => {
+    const parsed = insertTripSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const trip = await storage.updateTrip(req.params.id, parsed.data);
+    if (!trip) return res.status(404).json({ message: "Not found" });
+    res.json(trip);
+  });
+
   app.delete("/api/trips/:id", async (req, res) => {
     await storage.deleteTripTasksByTrip(req.params.id);
     await storage.deleteTrip(req.params.id);

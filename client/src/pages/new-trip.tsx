@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Destination } from "@shared/schema";
+import type { Destination, Trip } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { Plane, MapPin, Calendar, ArrowLeft, Plus, Check, X } from "lucide-react";
+import { Plane, MapPin, Calendar, ArrowLeft, Plus, Check, X, Trash2, Pencil } from "lucide-react";
 import { Link } from "wouter";
 
 const PRESET_COLORS = [
@@ -31,8 +31,42 @@ export default function NewTrip() {
   const [newDestName, setNewDestName] = useState("");
   const [newDestColor, setNewDestColor] = useState(PRESET_COLORS[0]);
 
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState("");
+
   const { data: destinations, isLoading } = useQuery<Destination[]>({
     queryKey: ["/api/destinations"],
+  });
+
+  const { data: trips } = useQuery<Trip[]>({
+    queryKey: ["/api/trips"],
+  });
+
+  const deleteTripMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/trips/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
+      toast({ title: "Trip deleted" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const updateTripMutation = useMutation({
+    mutationFn: async ({ id, arrivalDate }: { id: string; arrivalDate: string }) => {
+      await apiRequest("PATCH", `/api/trips/${id}`, { arrivalDate });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/trips"] });
+      setEditingTripId(null);
+      toast({ title: "Date updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
   });
 
   const createMutation = useMutation({
@@ -93,6 +127,82 @@ export default function NewTrip() {
             Select your destination and arrival date to generate your task checklist
           </p>
         </div>
+
+        {/* Existing Trips */}
+        {trips && trips.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="w-4 h-4" />
+                Existing Trips
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {trips.map((trip) => {
+                const dest = destinations?.find((d) => d.id === trip.destinationId);
+                return (
+                  <div key={trip.id} className="flex items-center gap-3 p-3 rounded-md border">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: dest?.color ?? "#888" }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{dest?.name ?? "Unknown"}</p>
+                      {editingTripId === trip.id ? (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Input
+                            type="date"
+                            value={editingDate}
+                            onChange={(e) => setEditingDate(e.target.value)}
+                            className="h-7 text-xs w-36"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-7 px-2"
+                            disabled={!editingDate || updateTripMutation.isPending}
+                            onClick={() => updateTripMutation.mutate({ id: trip.id, arrivalDate: editingDate })}
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2"
+                            onClick={() => setEditingTripId(null)}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">{trip.arrivalDate}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => { setEditingTripId(trip.id); setEditingDate(trip.arrivalDate); }}
+                        title="Edit date"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        onClick={() => deleteTripMutation.mutate(trip.id)}
+                        title="Delete trip"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
