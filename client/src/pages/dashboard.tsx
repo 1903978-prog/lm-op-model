@@ -1237,7 +1237,7 @@ function SidebarSection({ label }: { label: string }) {
   return <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 pt-2 pb-0.5">{label}</p>;
 }
 
-function InfoSidebar() {
+function InfoSidebar({ width }: { width: number }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const { data: weatherData } = useQuery<WeatherCity[]>({ queryKey: ["/api/weather"], staleTime: DAILY, refetchInterval: (q) => (q.state.data && q.state.data.length > 0) ? DAILY : RETRY_INTERVAL });
@@ -1277,7 +1277,7 @@ function InfoSidebar() {
   }
 
   return (
-    <aside className="w-[352px] flex-shrink-0 border-r bg-muted/20 overflow-y-auto flex flex-col" data-testid="info-sidebar">
+    <aside className="flex-shrink-0 border-r bg-muted/20 overflow-y-auto flex flex-col" style={{ width }} data-testid="info-sidebar">
       <div className="flex items-center justify-between px-3 pt-2 pb-1">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live Data</span>
         <button
@@ -1452,6 +1452,45 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [newsOpen, setNewsOpen] = useState(false);
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const s = localStorage.getItem("dash-sidebar-width");
+    return s ? parseInt(s) : 352;
+  });
+  const [rightColWidth, setRightColWidth] = useState(() => {
+    const s = localStorage.getItem("dash-right-col-width");
+    return s ? parseInt(s) : 420;
+  });
+
+  function startDrag(type: "sidebar" | "right", e: React.MouseEvent, startWidth: number) {
+    e.preventDefault();
+    const startX = e.clientX;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    function onMove(ev: MouseEvent) {
+      const delta = ev.clientX - startX;
+      if (type === "sidebar") {
+        const w = Math.max(200, Math.min(600, startWidth + delta));
+        setSidebarWidth(w);
+        localStorage.setItem("dash-sidebar-width", String(w));
+      } else {
+        const w = Math.max(240, Math.min(700, startWidth - delta));
+        setRightColWidth(w);
+        localStorage.setItem("dash-right-col-width", String(w));
+      }
+    }
+
+    function onUp() {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }
+
   const emailMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", "/api/send-test-email");
@@ -1517,10 +1556,17 @@ export default function Dashboard() {
 
   return (
     <div className="h-full flex overflow-hidden">
-      <InfoSidebar />
+      <InfoSidebar width={sidebarWidth} />
+
+      {/* Sidebar resize handle */}
+      <div
+        className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
+        onMouseDown={(e) => startDrag("sidebar", e, sidebarWidth)}
+        title="Drag to resize"
+      />
 
       {/* Main area — flex column, no outer scroll */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* Fixed header */}
         <div className="pl-3 pr-6 pt-4 pb-3 shrink-0 flex items-center justify-between gap-2">
@@ -1572,38 +1618,48 @@ export default function Dashboard() {
         {/* Scrollable content — each column scrolls independently */}
         <div className="flex-1 overflow-hidden pl-3 pr-6 pb-6 min-h-0 flex flex-col gap-4">
           {isLoading ? (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
-              <div className="space-y-4">
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+              <div className="flex-1 min-w-0 space-y-4">
                 <Skeleton className="h-56 w-full" />
                 <Skeleton className="h-48 w-full" />
               </div>
-              <Skeleton className="h-full w-full" />
+              <div className="w-1 flex-shrink-0 cursor-col-resize" onMouseDown={(e) => startDrag("right", e, rightColWidth)} />
+              <div className="flex-shrink-0" style={{ width: rightColWidth }}>
+                <Skeleton className="h-full w-full" />
+              </div>
             </div>
           ) : !trips || trips.length === 0 ? (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
-              <div className="overflow-y-auto min-h-0 space-y-4 pr-1">
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+              <div className="flex-1 min-w-0 overflow-y-auto min-h-0 space-y-4 pr-1">
                 <TDLTile />
                 <FriendsBox />
               </div>
-              <Card className="h-full">
-                <CardContent className="flex flex-col items-center justify-center h-full">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Plane className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-1">No trips planned yet</h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Start by planning your next trip to see your task checklist
-                  </p>
-                  <Link href="/trips/new">
-                    <Button data-testid="button-plan-first-trip">Plan your first trip</Button>
-                  </Link>
-                </CardContent>
-              </Card>
+              <div
+                className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors mx-1.5"
+                onMouseDown={(e) => startDrag("right", e, rightColWidth)}
+                title="Drag to resize"
+              />
+              <div className="flex-shrink-0 overflow-y-auto min-h-0" style={{ width: rightColWidth }}>
+                <Card className="h-full">
+                  <CardContent className="flex flex-col items-center justify-center h-full">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      <Plane className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-1">No trips planned yet</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Start by planning your next trip to see your task checklist
+                    </p>
+                    <Link href="/trips/new">
+                      <Button data-testid="button-plan-first-trip">Plan your first trip</Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-4">
+            <div className="flex-1 min-h-0 flex overflow-hidden">
               {/* Left column — TDL at top, then trip actions below */}
-              <div className="overflow-y-auto space-y-4 min-h-0 pr-1">
+              <div className="flex-1 min-w-0 overflow-y-auto space-y-4 min-h-0 pr-1">
                 <TDLTile />
                 <FriendsBox />
                 {destinations && <TodaysActions destinations={destinations} />}
@@ -1622,8 +1678,15 @@ export default function Dashboard() {
                 )}
               </div>
 
+              {/* Right column resize handle */}
+              <div
+                className="w-1 flex-shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors mx-1.5"
+                onMouseDown={(e) => startDrag("right", e, rightColWidth)}
+                title="Drag to resize"
+              />
+
               {/* Right column — overdue + deadline boxes */}
-              <div className="overflow-y-auto min-h-0 space-y-4 pr-1">
+              <div className="flex-shrink-0 overflow-y-auto min-h-0 space-y-4 pr-1" style={{ width: rightColWidth }}>
                 {destinations && <OverdueTripTasks destinations={destinations} />}
                 <ExpiredDeadlines />
                 <UpcomingDeadlines />
