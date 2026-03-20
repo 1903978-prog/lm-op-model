@@ -9,6 +9,7 @@ import NewTrip from "@/pages/new-trip";
 import Admin from "@/pages/admin";
 import Deadlines from "@/pages/deadlines";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
 import { LayoutDashboard, Settings, Plane, CalendarClock } from "lucide-react";
 
 const navItems = [
@@ -103,14 +104,32 @@ export default function App() {
     const saved = localStorage.getItem(LS_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_FONT;
   });
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${fontSize}px`;
     localStorage.setItem(LS_KEY, String(fontSize));
   }, [fontSize]);
 
+  useEffect(() => {
+    fetch("/api/auth/check")
+      .then((r) => r.json())
+      .then((data: { authenticated: boolean }) => setAuthenticated(data.authenticated))
+      .catch(() => setAuthenticated(false));
+  }, []);
+
   const decrease = () => setFontSize((s) => Math.max(MIN_FONT, s - STEP));
   const increase = () => setFontSize((s) => Math.min(MAX_FONT, s + STEP));
+
+  if (authenticated === null) return null; // Loading
+
+  if (!authenticated) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Login onSuccess={() => setAuthenticated(true)} />
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

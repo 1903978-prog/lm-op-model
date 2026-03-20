@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { authMiddleware, registerAuthRoutes } from "./auth";
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,6 +22,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+app.use(authMiddleware);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -62,6 +64,7 @@ app.use((req, res, next) => {
 (async () => {
   const { seedDatabase } = await import("./seed");
   await seedDatabase();
+  registerAuthRoutes(app);
   await registerRoutes(httpServer, app);
 
   const { startScheduler } = await import("./scheduler");
