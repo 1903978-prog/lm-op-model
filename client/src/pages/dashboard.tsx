@@ -1461,7 +1461,7 @@ export default function Dashboard() {
     return s ? parseInt(s) : 420;
   });
 
-  function startDrag(type: "sidebar" | "right", e: React.MouseEvent, startWidth: number) {
+  function startDrag(type: "sidebar" | "right", e: { preventDefault(): void; clientX: number }, startWidth: number) {
     e.preventDefault();
     const startX = e.clientX;
     document.body.style.cursor = "col-resize";
