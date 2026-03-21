@@ -660,16 +660,16 @@ function FriendsBox() {
                         <button
                           type="button"
                           onClick={() => toggleLoc(loc)}
-                          className="w-full flex items-center gap-1 px-1 mb-0.5 group/loc"
+                          className="w-full flex items-center gap-1.5 px-1 py-0.5 mb-0.5 rounded hover:bg-muted/40 transition-colors"
                         >
                           {isCollapsed
-                            ? <ChevronRight className="w-3 h-3 text-muted-foreground group-hover/loc:text-foreground transition-colors" />
-                            : <ChevronDown className="w-3 h-3 text-muted-foreground group-hover/loc:text-foreground transition-colors" />
+                            ? <ChevronRight className="w-3.5 h-3.5 text-primary shrink-0" />
+                            : <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" />
                           }
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground group-hover/loc:text-foreground transition-colors">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-foreground">
                             {loc}
                           </span>
-                          <span className="text-[10px] text-muted-foreground ml-1">
+                          <span className="text-[10px] text-muted-foreground ml-0.5">
                             ({groups[loc].length})
                           </span>
                         </button>
