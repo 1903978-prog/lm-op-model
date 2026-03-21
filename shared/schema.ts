@@ -131,6 +131,7 @@ export const packingItems = pgTable("packing_items", {
   name: text("name").notNull(),
   category: text("category"),
   packed: boolean("packed").notNull().default(false),
+  sortOrder: integer("sort_order"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

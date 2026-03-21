@@ -617,6 +617,14 @@ function FriendsBox() {
                 if (!groups[key]) groups[key] = [];
                 groups[key].push(f);
               }
+              // Within each group: most overdue (oldest lastSpoke) first
+              for (const key of Object.keys(groups)) {
+                groups[key].sort((a, b) => {
+                  const ad = new Date(a.lastSpoke + "T00:00:00").getTime();
+                  const bd = new Date(b.lastSpoke + "T00:00:00").getTime();
+                  return ad - bd;
+                });
+              }
               const sortedKeys = Object.keys(groups).sort((a, b) =>
                 a === "—" ? 1 : b === "—" ? -1 : a.localeCompare(b)
               );

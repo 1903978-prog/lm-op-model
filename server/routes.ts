@@ -582,6 +582,13 @@ export async function registerRoutes(
     res.status(201).json(await storage.createPackingItem(parsed.data));
   });
 
+  app.post("/api/packing-lists/:listId/items/reorder", async (req, res) => {
+    const { orderedIds } = req.body as { orderedIds: string[] };
+    if (!Array.isArray(orderedIds)) return res.status(400).json({ message: "orderedIds must be an array" });
+    await Promise.all(orderedIds.map((id, index) => storage.updatePackingItem(id, { sortOrder: index * 10 })));
+    res.json({ ok: true });
+  });
+
   app.post("/api/packing-lists/:listId/items/bulk", async (req, res) => {
     const { items } = req.body as { items: { name: string; category?: string | null }[] };
     if (!Array.isArray(items) || items.length === 0)

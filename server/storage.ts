@@ -12,7 +12,7 @@ import {
   type PackingItem, type InsertPackingItem,
   destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, tdlTasks, friends, places, packingLists, packingItems,
 } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql, asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 
@@ -276,7 +276,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPackingItems(listId: string): Promise<PackingItem[]> {
-    return db.select().from(packingItems).where(eq(packingItems.listId, listId)).orderBy(packingItems.createdAt);
+    return db.select().from(packingItems)
+      .where(eq(packingItems.listId, listId))
+      .orderBy(sql`${packingItems.sortOrder} NULLS LAST`, asc(packingItems.createdAt));
   }
 
   async createPackingItem(item: InsertPackingItem): Promise<PackingItem> {
