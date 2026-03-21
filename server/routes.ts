@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
-import { insertDestinationSchema, insertTaskSchema, insertTripSchema, insertTripTaskSchema, insertDeadlineSchema, insertDeadlineCategorySchema, insertTdlTaskSchema, insertFriendSchema, insertPlaceSchema } from "@shared/schema";
+import { insertDestinationSchema, insertTaskSchema, insertTripSchema, insertTripTaskSchema, insertDeadlineSchema, insertDeadlineCategorySchema, insertTdlTaskSchema, insertFriendSchema, insertPlaceSchema, insertPackingListSchema, insertPackingItemSchema, type InsertPackingItem } from "@shared/schema";
 import { deadlines, deadlineCategories, destinations, tasks, trips, tripTasks, tdlTasks } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
@@ -553,6 +553,59 @@ export async function registerRoutes(
   app.delete("/api/places/:id", async (req, res) => {
     await storage.deletePlace(req.params.id);
     res.status(204).send();
+  });
+
+  // ── Packing Lists ───────────────────────────────────────────────────────────
+  app.get("/api/packing-lists", async (_req, res) => {
+    res.json(await storage.getPackingLists());
+  });
+
+  app.post("/api/packing-lists", async (req, res) => {
+    const parsed = insertPackingListSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    res.status(201).json(await storage.createPackingList(parsed.data));
+  });
+
+  app.delete("/api/packing-lists/:id", async (req, res) => {
+    await storage.deletePackingItemsByList(req.params.id);
+    await storage.deletePackingList(req.params.id);
+    res.status(204).end();
+  });
+
+  app.get("/api/packing-lists/:listId/items", async (req, res) => {
+    res.json(await storage.getPackingItems(req.params.listId));
+  });
+
+  app.post("/api/packing-lists/:listId/items", async (req, res) => {
+    const parsed = insertPackingItemSchema.safeParse({ ...req.body, listId: req.params.listId });
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    res.status(201).json(await storage.createPackingItem(parsed.data));
+  });
+
+  app.post("/api/packing-lists/:listId/items/bulk", async (req, res) => {
+    const { items } = req.body as { items: { name: string; category?: string | null }[] };
+    if (!Array.isArray(items) || items.length === 0)
+      return res.status(400).json({ message: "items must be a non-empty array" });
+    const toInsert: InsertPackingItem[] = items.map((item) => ({
+      name: item.name,
+      category: item.category ?? null,
+      listId: req.params.listId,
+      packed: false,
+    }));
+    res.status(201).json(await storage.createPackingItemsBulk(toInsert));
+  });
+
+  app.patch("/api/packing-items/:id", async (req, res) => {
+    const parsed = insertPackingItemSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+    const updated = await storage.updatePackingItem(req.params.id, parsed.data);
+    if (!updated) return res.status(404).json({ message: "Not found" });
+    res.json(updated);
+  });
+
+  app.delete("/api/packing-items/:id", async (req, res) => {
+    await storage.deletePackingItem(req.params.id);
+    res.status(204).end();
   });
 
   app.get("/api/weather", async (_req, res) => {

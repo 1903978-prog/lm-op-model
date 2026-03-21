@@ -1,5 +1,5 @@
 import { db } from "./storage";
-import { destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, friends, tdlTasks, places } from "@shared/schema";
+import { destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, friends, tdlTasks, places, packingLists, packingItems } from "@shared/schema";
 
 export async function seedDatabase() {
   // ── Destinations ──────────────────────────────────────────────────────────
@@ -189,5 +189,138 @@ export async function seedDatabase() {
       { name: "UK" },
     ]);
     console.log("[seed] Inserted places");
+  }
+
+  // ── Packing Lists ─────────────────────────────────────────────────────────
+  const existingPackingLists = await db.select().from(packingLists);
+  if (existingPackingLists.length === 0) {
+    const lists = await db.insert(packingLists).values([
+      { id: "pl-cenate-checkout", name: "Cenate: Check Out" },
+      { id: "pl-cenate-checkin",  name: "Cenate: Check In" },
+      { id: "pl-trolley-work",    name: "Trolley: Work" },
+      { id: "pl-trolley-summer",  name: "Trolley: Summer" },
+      { id: "pl-romania-checkout",name: "Romania: Check Out" },
+      { id: "pl-romania-checkin", name: "Romania: Check In" },
+    ]).returning();
+
+    await db.insert(packingItems).values([
+      // ── Cenate Check Out ──────────────────────────────────────────────────
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Close big gate with two locks, put keys in limonaia" },
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Close small door of hangar" },
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Close blindata hangar and workshop" },
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Put doors and motion sensors in limonaia, garage, living, underground" },
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Put all in veranda technical room, lock doors, put keys in limonaia" },
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Close Portoncino floor 1, Check windows (all closed, especially floor -1)" },
+      { listId: "pl-cenate-checkout", category: "Security & Access", name: "Put light in stairs against thieves" },
+      { listId: "pl-cenate-checkout", category: "Water & Pool", name: "Close water: lever 8 in box underground and valve for outside pipes (then empty pipes)" },
+      { listId: "pl-cenate-checkout", category: "Water & Pool", name: "Empty all pipe outside (apri rubinetti, dopo aver chiuso N8)" },
+      { listId: "pl-cenate-checkout", category: "Water & Pool", name: "Cover pool and place on top sausages to block, Add chlorine to pool" },
+      { listId: "pl-cenate-checkout", category: "Water & Pool", name: "Activate bubbles to empty all pipes from dirt, empty jacuzzi, cover with green sheet" },
+      { listId: "pl-cenate-checkout", category: "Water & Pool", name: "Stacca spina a addolcitore" },
+      { listId: "pl-cenate-checkout", category: "Water & Pool", name: "Faucet of outside bathroom (in hangar)" },
+      { listId: "pl-cenate-checkout", category: "Electricity & Systems", name: "Switch AC to warm-up (underground technical room, ground floor entrance, 1st floor cabina armadio – switch to winter and pump)" },
+      { listId: "pl-cenate-checkout", category: "Electricity & Systems", name: "Switch off all lights, close windows underground" },
+      { listId: "pl-cenate-checkout", category: "Electricity & Systems", name: "Switch off veranda main switches" },
+      { listId: "pl-cenate-checkout", category: "Electricity & Systems", name: "Check water sensor batteries" },
+      { listId: "pl-cenate-checkout", category: "Cars & Equipment", name: "Close 2 boxes with cars inside + unplug and charge batteries" },
+      { listId: "pl-cenate-checkout", category: "Cars & Equipment", name: "Keep mower batteries inside home on charge" },
+      { listId: "pl-cenate-checkout", category: "Cars & Equipment", name: "Empty petrol from lawnmower (keep engine on until used up)" },
+      { listId: "pl-cenate-checkout", category: "Cars & Equipment", name: "Freeze car insurance" },
+      { listId: "pl-cenate-checkout", category: "House & Garden", name: "Cut grass, Bring in lemons" },
+      { listId: "pl-cenate-checkout", category: "House & Garden", name: "Svuota imp. Zanzare con compressore, turn off. Empty tank sauna se c'è acqua" },
+      { listId: "pl-cenate-checkout", category: "House & Garden", name: "Turn on both driers 1F, put silica gel in each wardrobe" },
+      { listId: "pl-cenate-checkout", category: "House & Garden", name: "Throw humid, empty sinkerator, empty fridge, empty jars (onions, garlic...), paper/plastic" },
+      { listId: "pl-cenate-checkout", category: "Valuables & Safety", name: "Put watches, money, car keys and hardisk in safe 1-2" },
+      { listId: "pl-cenate-checkout", category: "Valuables & Safety", name: "Close gas near entrance and behind kitchen, close water" },
+
+      // ── Cenate Check In ───────────────────────────────────────────────────
+      { listId: "pl-cenate-checkin", category: null, name: "Call Antonina" },
+      { listId: "pl-cenate-checkin", category: null, name: "Insure back cars, check tagliando biannuale, telepass" },
+      { listId: "pl-cenate-checkin", category: null, name: "Pay Wind SIM" },
+      { listId: "pl-cenate-checkin", category: null, name: "Open safe, take car keys, veranda locks of ain gate" },
+      { listId: "pl-cenate-checkin", category: null, name: "Open water and gas" },
+      { listId: "pl-cenate-checkin", category: null, name: "Open garages, charge car, open big gate" },
+      { listId: "pl-cenate-checkin", category: null, name: "Pool: empty keeping pump on, 180kg salt, turn on pump, se alghe 750g dichlore, PH 7.2-7.7, 2kg PH- to decrease by 0.5 PH, REDOX 650-750mv; Jacuzzi: water +10g antialghe +antifloculante +anticalcare, 3 bromo, PH 7.2-7.6, clean filter, alcalanita 80-120ppm, TDS <1500, conduttività 800-2000 microsec/cm" },
+      { listId: "pl-cenate-checkin", category: null, name: "Test colesterolo" },
+      { listId: "pl-cenate-checkin", category: null, name: "Take cash from ATM" },
+
+      // ── Trolley: Work ─────────────────────────────────────────────────────
+      { listId: "pl-trolley-work", category: "Documents", name: "Passport, boarding pass, hotel booking, Entry VISA, Book Taxi" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "PC + CHARGER + mouse" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "iPhone + CHARGER + earpod" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "Glasses (work)" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "Powerbank" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "USB KEY" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "BOSE noise cancel" },
+      { listId: "pl-trolley-work", category: "Electronics", name: "PLUG ADAPTER (UK, US)" },
+      { listId: "pl-trolley-work", category: "Keys & Cash", name: "CENATE entry and gate keys" },
+      { listId: "pl-trolley-work", category: "Keys & Cash", name: "Revolut and B4bank cards, 200 EUR cash" },
+      { listId: "pl-trolley-work", category: "Keys & Cash", name: "Business cards" },
+      { listId: "pl-trolley-work", category: "Keys & Cash", name: "Watch" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "Scarpe lavoro" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "2 shirts (in case of spill)" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "Abito, cintura, (tie), 240h" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "Dress: 1 white t-shirt, 1 slip, 2 blue socks, 1 polo, 1 t-shirt, 1 white socks, shorts" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "Sleeping t-shirt long sleeve" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "Sneakers and gym outfit" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "GYM: T-shirt, pantaloncini, white socks, shoes" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "Sunglasses, cap, umbrella / k way" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "SWIMSUIT (if hotel sauna)" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "WATER BOTTLE" },
+      { listId: "pl-trolley-work", category: "Clothes", name: "WINTER: scarf, hat, gloves" },
+      { listId: "pl-trolley-work", category: "Toiletries", name: "Igiene: rasoio, EYE DROPS, taglia unghie, shampoo, toothpaste, cream face, toothbrush, cuffia" },
+      { listId: "pl-trolley-work", category: "Stationery", name: "Quaderno, 2 penne" },
+      { listId: "pl-trolley-work", category: "Optional", name: "Driving licence, iPhone holder for car, music loudspeaker" },
+
+      // ── Trolley: Summer ───────────────────────────────────────────────────
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "Passport + photo" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "VISA + photocopy" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "Hotel confirmation (print for border check)" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "Driving license" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "Health insurance card (for US)" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "Credit card (for car rental)" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "Cash (EUR/USD)" },
+      { listId: "pl-trolley-summer", category: "Documents & Travel", name: "CENATE entry and gate keys" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "PC + charger" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "iPhone + charger" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "iPad + charger" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "Camera Nikon + charger + empty flash cards" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "USB adaptor for car charger" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "Voltage converter / adaptor" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "BOSE noise-cancelling headphones" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "Loudspeaker" },
+      { listId: "pl-trolley-summer", category: "Electronics & Gadgets", name: "Torch / bicycle light for night" },
+      { listId: "pl-trolley-summer", category: "Toiletries & Health", name: "Toothbrush, toothpaste, deodorant, shampoo + conditioner, razor + nail cutter, ear drops + eye drops, face cream + disinfectant gel, floss, lip balm" },
+      { listId: "pl-trolley-summer", category: "Toiletries & Health", name: "Tissues, mosquito spray + after-bite spray, sun cream (pre and post sun), medicine kit (headache, flu, personal meds)" },
+      { listId: "pl-trolley-summer", category: "Clothes & Shoes", name: "Beach & Sport: 2 swimsuits, slippers / flip-flops, band for eyewear, gloves + shoes for windsurf, sneakers, workout outfit (T-shirt + shorts + socks)" },
+      { listId: "pl-trolley-summer", category: "Clothes & Shoes", name: "Casual & Daywear: 2 slips, 2 white T-shirts, socks (white & blue), polo shirt, lino trousers, jeans, shorts, walking shoes" },
+      { listId: "pl-trolley-summer", category: "Clothes & Shoes", name: "Evening & Sleepwear: 2 long-sleeved shirts, jacket + sweater, sweater with zip, sleeping T-shirt (long sleeve)" },
+      { listId: "pl-trolley-summer", category: "Beach & Outdoor", name: "Sunglasses + case, sun hat / cap, beach bag, pareo, towel, underwater glasses / mask, snorkeling gear, mosquito net, sea-inflatable bed, lighter (for BBQ)" },
+      { listId: "pl-trolley-summer", category: "Accessories & Misc.", name: "Notebook + 2 pens" },
+      { listId: "pl-trolley-summer", category: "Accessories & Misc.", name: "Books" },
+      { listId: "pl-trolley-summer", category: "Accessories & Misc.", name: "Backpack" },
+      { listId: "pl-trolley-summer", category: "Accessories & Misc.", name: "Umbrella" },
+      { listId: "pl-trolley-summer", category: "Optional", name: "Elastic bands / fabric strip (20cm), Swiss knife, screwdriver for bikes, scissors + tape, small bottle for washing hands, plastic bags (normal + sealable), Tupperware for lunch, belt money / money belt, lock and chain" },
+      { listId: "pl-trolley-summer", category: "Optional", name: "Sewing kit, pinzette per ricci di mare" },
+
+      // ── Romania Check Out ─────────────────────────────────────────────────
+      { listId: "pl-romania-checkout", category: null, name: "Disconnect car battery" },
+      { listId: "pl-romania-checkout", category: null, name: "Throw garbage" },
+      { listId: "pl-romania-checkout", category: null, name: "Close electricity, leave fridge open" },
+      { listId: "pl-romania-checkout", category: null, name: "Turn off heaters" },
+      { listId: "pl-romania-checkout", category: null, name: "Close gas outside" },
+      { listId: "pl-romania-checkout", category: null, name: "Cover sofa" },
+      { listId: "pl-romania-checkout", category: null, name: "NB. Buy chiavi inglesi to disconnect battery Audi" },
+
+      // ── Romania Check In ──────────────────────────────────────────────────
+      { listId: "pl-romania-checkin", category: null, name: "Ask cleaner to hover all, clean dust all surfaces, wash sheets-pillow, open windows" },
+      { listId: "pl-romania-checkin", category: null, name: "Bring key door, key car, keys storage" },
+      { listId: "pl-romania-checkin", category: null, name: "Pay car insurance, check ITP" },
+      { listId: "pl-romania-checkin", category: null, name: "Gas, electricity" },
+      { listId: "pl-romania-checkin", category: null, name: "Pay Orange SIM (cu optiuni)" },
+      { listId: "pl-romania-checkin", category: null, name: "Wash 70c sheets" },
+      { listId: "pl-romania-checkin", category: null, name: "Reconnect Audi battery" },
+    ]);
+    console.log("[seed] Inserted packing lists and items");
   }
 }

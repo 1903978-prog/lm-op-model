@@ -8,14 +8,16 @@ import Dashboard from "@/pages/dashboard";
 import NewTrip from "@/pages/new-trip";
 import Admin from "@/pages/admin";
 import Deadlines from "@/pages/deadlines";
+import PackingPage from "@/pages/packing";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
-import { LayoutDashboard, Settings, Plane, CalendarClock } from "lucide-react";
+import { LayoutDashboard, Settings, Plane, CalendarClock, Luggage } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard",   url: "/",           icon: LayoutDashboard },
   { title: "Plan a Trip", url: "/trips/new",  icon: Plane },
   { title: "Deadlines",   url: "/deadlines",  icon: CalendarClock },
+  { title: "Packing",     url: "/packing",    icon: Luggage },
   { title: "Admin",       url: "/admin",       icon: Settings },
 ];
 
@@ -94,6 +96,7 @@ function Router() {
       <Route path="/trips/new" component={NewTrip} />
       <Route path="/admin" component={Admin} />
       <Route path="/deadlines" component={Deadlines} />
+      <Route path="/packing" component={PackingPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -114,3 +114,26 @@ export const tdlTasks = pgTable("tdl_tasks", {
 export const insertTdlTaskSchema = createInsertSchema(tdlTasks).omit({ id: true, createdAt: true });
 export type InsertTdlTask = z.infer<typeof insertTdlTaskSchema>;
 export type TdlTask = typeof tdlTasks.$inferSelect;
+
+export const packingLists = pgTable("packing_lists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPackingListSchema = createInsertSchema(packingLists).omit({ id: true, createdAt: true });
+export type InsertPackingList = z.infer<typeof insertPackingListSchema>;
+export type PackingList = typeof packingLists.$inferSelect;
+
+export const packingItems = pgTable("packing_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listId: varchar("list_id").notNull().references(() => packingLists.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category"),
+  packed: boolean("packed").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPackingItemSchema = createInsertSchema(packingItems).omit({ id: true, createdAt: true });
+export type InsertPackingItem = z.infer<typeof insertPackingItemSchema>;
+export type PackingItem = typeof packingItems.$inferSelect;

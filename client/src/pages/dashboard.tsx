@@ -528,6 +528,15 @@ function FriendsBox() {
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
   const [listOpen, setListOpen] = useState(true);
+  const [collapsedLocs, setCollapsedLocs] = useState<Set<string>>(new Set());
+
+  function toggleLoc(loc: string) {
+    setCollapsedLocs((prev) => {
+      const next = new Set(prev);
+      if (next.has(loc)) next.delete(loc); else next.add(loc);
+      return next;
+    });
+  }
 
   const { data: friendsList, isLoading } = useQuery<Friend[]>({
     queryKey: ["/api/friends"],
@@ -643,15 +652,35 @@ function FriendsBox() {
               );
 
               return (
-                <div className="space-y-3">
-                  {sortedKeys.map((loc) => (
-                    <div key={loc}>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-0.5">{loc}</p>
-                      <div className="space-y-0.5">
-                        {groups[loc].map((f) => <FriendRow key={f.id} f={f} />)}
+                <div className="space-y-2">
+                  {sortedKeys.map((loc) => {
+                    const isCollapsed = collapsedLocs.has(loc);
+                    return (
+                      <div key={loc}>
+                        <button
+                          type="button"
+                          onClick={() => toggleLoc(loc)}
+                          className="w-full flex items-center gap-1 px-1 mb-0.5 group/loc"
+                        >
+                          {isCollapsed
+                            ? <ChevronRight className="w-3 h-3 text-muted-foreground group-hover/loc:text-foreground transition-colors" />
+                            : <ChevronDown className="w-3 h-3 text-muted-foreground group-hover/loc:text-foreground transition-colors" />
+                          }
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground group-hover/loc:text-foreground transition-colors">
+                            {loc}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground ml-1">
+                            ({groups[loc].length})
+                          </span>
+                        </button>
+                        {!isCollapsed && (
+                          <div className="space-y-0.5 ml-3">
+                            {groups[loc].map((f) => <FriendRow key={f.id} f={f} />)}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })()}

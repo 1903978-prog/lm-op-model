@@ -8,7 +8,9 @@ import {
   type TdlTask, type InsertTdlTask,
   type Friend, type InsertFriend,
   type Place, type InsertPlace,
-  destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, tdlTasks, friends, places,
+  type PackingList, type InsertPackingList,
+  type PackingItem, type InsertPackingItem,
+  destinations, tasks, trips, tripTasks, deadlines, deadlineCategories, tdlTasks, friends, places, packingLists, packingItems,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -66,6 +68,17 @@ export interface IStorage {
   getPlaces(): Promise<Place[]>;
   createPlace(place: InsertPlace): Promise<Place>;
   deletePlace(id: string): Promise<void>;
+
+  getPackingLists(): Promise<PackingList[]>;
+  createPackingList(list: InsertPackingList): Promise<PackingList>;
+  deletePackingList(id: string): Promise<void>;
+
+  getPackingItems(listId: string): Promise<PackingItem[]>;
+  createPackingItem(item: InsertPackingItem): Promise<PackingItem>;
+  createPackingItemsBulk(items: InsertPackingItem[]): Promise<PackingItem[]>;
+  updatePackingItem(id: string, data: Partial<InsertPackingItem>): Promise<PackingItem | undefined>;
+  deletePackingItem(id: string): Promise<void>;
+  deletePackingItemsByList(listId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -247,6 +260,46 @@ export class DatabaseStorage implements IStorage {
 
   async deletePlace(id: string): Promise<void> {
     await db.delete(places).where(eq(places.id, id));
+  }
+
+  async getPackingLists(): Promise<PackingList[]> {
+    return db.select().from(packingLists).orderBy(packingLists.createdAt);
+  }
+
+  async createPackingList(list: InsertPackingList): Promise<PackingList> {
+    const [created] = await db.insert(packingLists).values(list).returning();
+    return created;
+  }
+
+  async deletePackingList(id: string): Promise<void> {
+    await db.delete(packingLists).where(eq(packingLists.id, id));
+  }
+
+  async getPackingItems(listId: string): Promise<PackingItem[]> {
+    return db.select().from(packingItems).where(eq(packingItems.listId, listId)).orderBy(packingItems.createdAt);
+  }
+
+  async createPackingItem(item: InsertPackingItem): Promise<PackingItem> {
+    const [created] = await db.insert(packingItems).values(item).returning();
+    return created;
+  }
+
+  async createPackingItemsBulk(items: InsertPackingItem[]): Promise<PackingItem[]> {
+    if (items.length === 0) return [];
+    return db.insert(packingItems).values(items).returning();
+  }
+
+  async updatePackingItem(id: string, data: Partial<InsertPackingItem>): Promise<PackingItem | undefined> {
+    const [updated] = await db.update(packingItems).set(data).where(eq(packingItems.id, id)).returning();
+    return updated;
+  }
+
+  async deletePackingItem(id: string): Promise<void> {
+    await db.delete(packingItems).where(eq(packingItems.id, id));
+  }
+
+  async deletePackingItemsByList(listId: string): Promise<void> {
+    await db.delete(packingItems).where(eq(packingItems.listId, listId));
   }
 }
 

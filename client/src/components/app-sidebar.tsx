@@ -9,12 +9,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, Settings, Plane, CalendarClock } from "lucide-react";
+import { LayoutDashboard, Settings, Plane, CalendarClock, Luggage } from "lucide-react";
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Plan a Trip", url: "/trips/new", icon: Plane },
   { title: "Deadlines", url: "/deadlines", icon: CalendarClock },
+  { title: "Packing Lists", url: "/packing", icon: Luggage },
   { title: "Admin Panel", url: "/admin", icon: Settings },
 ];
 
