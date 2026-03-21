@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import {
@@ -659,6 +660,40 @@ function FriendManager() {
   const [editLocation, setEditLocation] = useState("__none__");
   const [editKeepInTouch, setEditKeepInTouch] = useState(true);
 
+  // Multi-select bulk assign
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLocation, setBulkLocation] = useState("__none__");
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+    setBulkLocation("__none__");
+  }
+
+  const bulkMutation = useMutation({
+    mutationFn: async () => {
+      const loc = bulkLocation === "__none__" ? null : bulkLocation;
+      await Promise.all(
+        Array.from(selectedIds).map((id) =>
+          apiRequest("PATCH", `/api/friends/${id}`, { location: loc })
+        )
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      clearSelection();
+      toast({ title: `${selectedIds.size} friend${selectedIds.size > 1 ? "s" : ""} assigned` });
+    },
+    onError: () => toast({ title: "Bulk assign failed", variant: "destructive" }),
+  });
+
   const addMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/friends", {
@@ -731,6 +766,43 @@ function FriendManager() {
         </Button>
       </div>
 
+      {/* Bulk assign bar — appears when friends are selected */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+          <span className="text-sm font-medium text-primary shrink-0">
+            {selectedIds.size} selected
+          </span>
+          <Select value={bulkLocation} onValueChange={setBulkLocation}>
+            <SelectTrigger className="h-8 text-sm flex-1">
+              <SelectValue placeholder="Assign to location…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— No location —</SelectItem>
+              {places.map((p) => (
+                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            className="h-8 px-3 shrink-0"
+            disabled={bulkMutation.isPending}
+            onClick={() => bulkMutation.mutate()}
+          >
+            <Check className="w-3.5 h-3.5 mr-1" />
+            Assign
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 px-2 shrink-0"
+            onClick={clearSelection}
+          >
+            <X className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      )}
+
       {/* Add dialog */}
       <Dialog open={addingOpen} onOpenChange={setAddingOpen}>
         <DialogContent>
@@ -767,9 +839,26 @@ function FriendManager() {
 
       {list.length === 0 && <p className="text-sm text-muted-foreground">No friends yet.</p>}
 
-      {sortedKeys.map((loc) => (
+      {sortedKeys.map((loc) => {
+        const groupFriends = groups[loc];
+        const allGroupSelected = groupFriends.every((f) => selectedIds.has(f.id));
+        return (
         <div key={loc}>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{loc}</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Checkbox
+              checked={allGroupSelected && groupFriends.length > 0}
+              onCheckedChange={() => {
+                setSelectedIds((prev) => {
+                  const next = new Set(prev);
+                  if (allGroupSelected) groupFriends.forEach((f) => next.delete(f.id));
+                  else groupFriends.forEach((f) => next.add(f.id));
+                  return next;
+                });
+              }}
+            />
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{loc}</p>
+            <span className="text-xs text-muted-foreground">({groupFriends.length})</span>
+          </div>
           <div className="space-y-1.5">
             {groups[loc].map((f) => (
               <div key={f.id} className="p-2.5 rounded-md bg-muted/50 space-y-2">
@@ -803,6 +892,11 @@ function FriendManager() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={selectedIds.has(f.id)}
+                      onCheckedChange={() => toggleSelect(f.id)}
+                      className="shrink-0"
+                    />
                     <span className={`w-2 h-2 rounded-full shrink-0 ${f.keepInTouch ? "bg-green-500" : "bg-muted-foreground/40"}`} title={f.keepInTouch ? "Keep in touch" : "Not tracked"} />
                     <span className="flex-1 text-sm font-medium truncate">{f.name}</span>
                     <button type="button" onClick={() => { setEditingId(f.id); setEditName(f.name); setEditLocation(f.location ?? "__none__"); setEditKeepInTouch(f.keepInTouch ?? true); }}
@@ -818,7 +912,8 @@ function FriendManager() {
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
