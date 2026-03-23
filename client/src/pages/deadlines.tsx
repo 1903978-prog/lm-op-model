@@ -90,13 +90,13 @@ function urgencyLevel(daysLeft: number | null): UrgencyLevel {
   return "later";
 }
 
-const urgencyStyles: Record<UrgencyLevel, { border: string; bg: string; badge: string; label: string; subText: string }> = {
-  overdue: { border: "border-l-destructive", bg: "bg-destructive/5", badge: "bg-destructive text-destructive-foreground", label: "Overdue",  subText: "text-muted-foreground" },
-  soon:    { border: "border-l-red-500",     bg: "bg-red-50 text-gray-900",   badge: "bg-red-500 text-white",    label: "Due soon",  subText: "text-gray-600" },
-  medium:  { border: "border-l-amber-400",   bg: "bg-amber-50 text-gray-900", badge: "bg-amber-400 text-white", label: "Coming up", subText: "text-gray-600" },
-  later:   { border: "border-l-sky-400",     bg: "bg-sky-50 text-gray-900",   badge: "bg-sky-400 text-white",   label: "Upcoming",  subText: "text-gray-600" },
-  missing: { border: "border-l-muted-foreground/40", bg: "", badge: "bg-muted text-muted-foreground", label: "No date",   subText: "text-muted-foreground" },
-};
+// dark-compatible tile styles
+const bucketStyles = {
+  "7":  { border: "border-red-500/40",   bg: "bg-red-500/10",   badge: "bg-red-500 text-white",         dot: "bg-red-500",   label: "Next 7 days"  },
+  "30": { border: "border-amber-400/40", bg: "bg-amber-500/10", badge: "bg-amber-400 text-white",        dot: "bg-amber-400", label: "Next 30 days" },
+  "60": { border: "border-sky-400/40",   bg: "bg-sky-500/10",   badge: "bg-sky-500 text-white",          dot: "bg-sky-500",   label: "Next 60 days" },
+  "90": { border: "border-muted/40",     bg: "bg-muted/10",     badge: "bg-muted-foreground text-white", dot: "bg-muted-foreground", label: "Next 90 days" },
+} as const;
 
 // ─── Overview tab ─────────────────────────────────────────────────────────────
 
@@ -116,23 +116,99 @@ function computeAll(deadlines: Deadline[]): ComputedDeadline[] {
   });
 }
 
+function DeadlineTile({ d, onSnooze, onViewNotes }: {
+  d: ComputedDeadline;
+  onSnooze: (id: string) => void;
+  onViewNotes: (name: string, notes: string) => void;
+}) {
+  const bucket = d.daysLeft! <= 7 ? "7" : d.daysLeft! <= 30 ? "30" : d.daysLeft! <= 60 ? "60" : "90";
+  const style = bucketStyles[bucket as keyof typeof bucketStyles];
+  return (
+    <div
+      className={`border rounded-lg p-2.5 flex flex-col gap-1.5 ${style.border} ${style.bg}`}
+      data-testid={`upcoming-card-${d.id}`}
+    >
+      {/* Top row: name + badge */}
+      <div className="flex items-start justify-between gap-1.5">
+        <span className="font-semibold text-sm leading-snug text-foreground">{d.name}</span>
+        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${style.badge}`}>
+          {d.daysLeft === 0 ? "Today" : `${d.daysLeft}d`}
+        </span>
+      </div>
+
+      {/* Due date */}
+      <div className="text-xs text-muted-foreground">
+        {d.nextDue ? format(d.nextDue, "d MMM yyyy") : "—"}
+      </div>
+
+      {/* Category + country row */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {d.category && <span className="text-[10px] text-muted-foreground capitalize">{d.category}</span>}
+        {d.country && <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">{d.country}</Badge>}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 mt-auto pt-1 border-t border-white/5">
+        {d.notes ? (
+          <button onClick={() => onViewNotes(d.name, d.notes!)} className="text-primary/70 hover:text-primary transition-colors" title="View notes">
+            <Info className="w-3.5 h-3.5" />
+          </button>
+        ) : <span className="w-3.5" />}
+        <button onClick={() => onSnooze(d.id)} className="ml-auto text-muted-foreground hover:text-green-600 transition-colors" title="Mark done / snooze 6 months" data-testid={`button-snooze-${d.id}`}>
+          <CheckCircle2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function BucketSection({ label, dot, items, onSnooze, onViewNotes }: {
+  label: string;
+  dot: string;
+  items: ComputedDeadline[];
+  onSnooze: (id: string) => void;
+  onViewNotes: (name: string, notes: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section>
+      <h2 className="text-sm font-semibold mb-2.5 flex items-center gap-2">
+        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dot}`} />
+        {label}
+        <span className="text-xs font-normal text-muted-foreground">({items.length})</span>
+      </h2>
+      <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {items.map((d) => (
+          <DeadlineTile key={d.id} d={d} onSnooze={onSnooze} onViewNotes={onViewNotes} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
   deadlines: Deadline[];
   onEdit: (d: Deadline) => void;
   onDelete: (id: string) => void;
   onSnooze: (id: string) => void;
 }) {
+  const [viewNotes, setViewNotes] = useState<{ name: string; notes: string } | null>(null);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const computed = computeAll(deadlines);
 
-  const upcoming = computed
+  const active = computed
     .filter((d) => {
       if (d.daysLeft === null || d.daysLeft < 0 || d.daysLeft > 90 || d.autoPayment) return false;
       if (d.snoozedUntil && new Date(d.snoozedUntil) > today) return false;
       return true;
     })
     .sort((a, b) => a.daysLeft! - b.daysLeft!);
+
+  const bucket7  = active.filter((d) => d.daysLeft! <= 7);
+  const bucket30 = active.filter((d) => d.daysLeft! > 7  && d.daysLeft! <= 30);
+  const bucket60 = active.filter((d) => d.daysLeft! > 30 && d.daysLeft! <= 60);
+  const bucket90 = active.filter((d) => d.daysLeft! > 60);
 
   const missing = computed
     .filter((d) => d.nextDue === null)
@@ -146,61 +222,21 @@ function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
   });
 
   return (
-    <div className="space-y-8">
-      {/* Upcoming 90 days */}
-      <section>
-        <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-primary" />
-          Upcoming in next 90 days
-          <Badge variant="secondary" className="ml-1">{upcoming.length}</Badge>
-        </h2>
-        {upcoming.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No deadlines in the next 90 days.</p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {upcoming.map((d) => {
-              const style = urgencyStyles[d.urgency];
-              return (
-                <div
-                  key={d.id}
-                  className={`border-l-4 rounded-md p-3 ${style.border} ${style.bg}`}
-                  data-testid={`upcoming-card-${d.id}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-medium text-sm">{d.name}</span>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${style.badge}`}>
-                        {d.daysLeft === 0 ? "Today" : `${d.daysLeft}d`}
-                      </span>
-                      <button
-                        title="Snooze for 6 months"
-                        onClick={() => onSnooze(d.id)}
-                        className="text-muted-foreground hover:text-green-600 transition-colors"
-                        data-testid={`button-snooze-${d.id}`}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className={`text-xs mt-1 space-y-0.5 ${style.subText}`}>
-                    <div>Due: {d.nextDue ? format(d.nextDue, "dd MMM yyyy") : "—"}</div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {d.category && <span className="capitalize">{d.category}</span>}
-                      {d.country && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{d.country}</Badge>}
-                    </div>
-                    {d.notes && <div className="italic">{d.notes}</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+    <>
+    <div className="space-y-6">
+      {active.length === 0 && (
+        <p className="text-sm text-muted-foreground">No deadlines in the next 90 days.</p>
+      )}
+
+      <BucketSection label="Next 7 days"  dot={bucketStyles["7"].dot}  items={bucket7}  onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
+      <BucketSection label="Next 30 days" dot={bucketStyles["30"].dot} items={bucket30} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
+      <BucketSection label="Next 60 days" dot={bucketStyles["60"].dot} items={bucket60} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
+      <BucketSection label="Next 90 days" dot={bucketStyles["90"].dot} items={bucket90} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
 
       {/* Missing dates */}
       {missing.length > 0 && (
         <section>
-          <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
+          <h2 className="text-sm font-semibold mb-2.5 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-muted-foreground" />
             Missing date information
             <Badge variant="secondary" className="ml-1">{missing.length}</Badge>
@@ -257,7 +293,12 @@ function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
               </thead>
               <tbody>
                 {all.map((d, idx) => {
-                  const style = urgencyStyles[d.urgency];
+                  const badgeCls = d.daysLeft === null ? "bg-muted text-muted-foreground"
+                    : d.daysLeft < 0   ? "bg-destructive text-destructive-foreground"
+                    : d.daysLeft <= 7  ? "bg-red-500 text-white"
+                    : d.daysLeft <= 30 ? "bg-amber-400 text-white"
+                    : d.daysLeft <= 60 ? "bg-sky-500 text-white"
+                    : "bg-muted-foreground text-white";
                   return (
                     <tr
                       key={d.id}
@@ -270,7 +311,7 @@ function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
                       </td>
                       <td className="px-4 py-2.5">
                         {d.daysLeft !== null ? (
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${style.badge}`}>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badgeCls}`}>
                             {d.daysLeft < 0 ? `${Math.abs(d.daysLeft)}d overdue` : d.daysLeft === 0 ? "Today" : `${d.daysLeft}d`}
                           </span>
                         ) : (
@@ -291,6 +332,19 @@ function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
         </Card>
       </section>
     </div>
+
+    <Dialog open={!!viewNotes} onOpenChange={(v) => { if (!v) setViewNotes(null); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-muted-foreground" />
+            {viewNotes?.name}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{viewNotes?.notes}</p>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
