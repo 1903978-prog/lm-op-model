@@ -6,6 +6,7 @@ import type { Deadline, InsertDeadline, DeadlineCategory } from "@shared/schema"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, CalendarClock, AlertTriangle, Clock, CalendarDays, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, CalendarClock, AlertTriangle, Clock, CalendarDays, CheckCircle2, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, addYears, addMonths } from "date-fns";
 import {
@@ -331,12 +332,14 @@ function EditableRow({
   onSave,
   onDelete,
   isSaving,
+  onEditNotes,
 }: {
   d: Deadline;
   idx: number;
   onSave: (id: string, data: Partial<InsertDeadline>) => void;
   onDelete: (id: string) => void;
   isSaving: boolean;
+  onEditNotes: (d: Deadline) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<RowDraft>(deadlineToRow(d));
@@ -429,7 +432,15 @@ function EditableRow({
           <Input className="h-7 text-xs w-16" type="number" min={0} placeholder="days" value={draft.reminderDaysBefore} onChange={(e) => set("reminderDaysBefore", e.target.value)} data-testid={`inline-reminder-${d.id}`} />
         </td>
         <td className="px-2 py-1.5">
-          <Input className="h-7 text-xs" placeholder="notes" value={draft.notes} onChange={(e) => set("notes", e.target.value)} data-testid={`inline-notes-${d.id}`} />
+          <button
+            type="button"
+            onClick={() => onEditNotes(d)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            title="Edit notes"
+          >
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate max-w-[100px]">{draft.notes || <span className="italic opacity-60">add notes…</span>}</span>
+          </button>
         </td>
         <td className="px-2 py-1.5 text-center">
           <Switch
@@ -470,7 +481,17 @@ function EditableRow({
       </td>
       <td className="px-4 py-2.5 text-muted-foreground">{d.lastDone ?? "—"}</td>
       <td className="px-4 py-2.5 text-muted-foreground">{d.reminderDaysBefore != null ? `${d.reminderDaysBefore}d` : "—"}</td>
-      <td className="px-4 py-2.5 text-muted-foreground max-w-[160px] truncate">{d.notes ?? "—"}</td>
+      <td className="px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => onEditNotes(d)}
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group/notes"
+          title={d.notes ? "View / edit notes" : "Add notes"}
+        >
+          <Info className={`w-3.5 h-3.5 shrink-0 transition-colors ${d.notes ? "text-muted-foreground group-hover/notes:text-foreground" : "opacity-30 group-hover/notes:opacity-70"}`} />
+          {d.notes && <span className="truncate max-w-[140px]">{d.notes}</span>}
+        </button>
+      </td>
       <td className="px-4 py-2.5 text-center">
         <Switch
           checked={d.autoPayment ?? false}
@@ -498,6 +519,20 @@ function ManageTab({ deadlines, onSave, onDelete, isSaving }: {
   onDelete: (id: string) => void;
   isSaving: boolean;
 }) {
+  const [notesDialog, setNotesDialog] = useState<Deadline | null>(null);
+  const [notesDraft, setNotesDraft]   = useState("");
+
+  function openNotes(d: Deadline) {
+    setNotesDialog(d);
+    setNotesDraft(d.notes ?? "");
+  }
+
+  function saveNotes() {
+    if (!notesDialog) return;
+    onSave(notesDialog.id, { notes: notesDraft.trim() || null });
+    setNotesDialog(null);
+  }
+
   const grouped: Record<string, Deadline[]> = {};
   for (const d of deadlines) {
     const key = d.category?.trim() || "Uncategorised";
@@ -506,49 +541,75 @@ function ManageTab({ deadlines, onSave, onDelete, isSaving }: {
   }
 
   return (
-    <div className="space-y-6">
-      {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => (
-        <Card key={category} data-testid={`card-category-${category}`}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground capitalize">
-              {category}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
-                    <th className="text-left px-4 py-2 font-medium">Name</th>
-                    <th className="text-left px-4 py-2 font-medium">Category</th>
-                    <th className="text-left px-4 py-2 font-medium">Country</th>
-                    <th className="text-left px-4 py-2 font-medium">Frequency</th>
-                    <th className="text-left px-4 py-2 font-medium" colSpan={2}>Due date</th>
-                    <th className="text-left px-4 py-2 font-medium">Last done</th>
-                    <th className="text-left px-4 py-2 font-medium">Reminder</th>
-                    <th className="text-left px-4 py-2 font-medium">Notes</th>
-                    <th className="text-center px-4 py-2 font-medium">Auto pay</th>
-                    <th className="px-4 py-2 w-28" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((d, idx) => (
-                    <EditableRow
-                      key={d.id}
-                      d={d}
-                      idx={idx}
-                      onSave={onSave}
-                      onDelete={onDelete}
-                      isSaving={isSaving}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <>
+      <div className="space-y-6">
+        {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => (
+          <Card key={category} data-testid={`card-category-${category}`}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground capitalize">
+                {category}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/40 text-xs text-muted-foreground">
+                      <th className="text-left px-4 py-2 font-medium">Name</th>
+                      <th className="text-left px-4 py-2 font-medium">Category</th>
+                      <th className="text-left px-4 py-2 font-medium">Country</th>
+                      <th className="text-left px-4 py-2 font-medium">Frequency</th>
+                      <th className="text-left px-4 py-2 font-medium" colSpan={2}>Due date</th>
+                      <th className="text-left px-4 py-2 font-medium">Last done</th>
+                      <th className="text-left px-4 py-2 font-medium">Reminder</th>
+                      <th className="text-left px-4 py-2 font-medium">Notes</th>
+                      <th className="text-center px-4 py-2 font-medium">Auto pay</th>
+                      <th className="px-4 py-2 w-28" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((d, idx) => (
+                      <EditableRow
+                        key={d.id}
+                        d={d}
+                        idx={idx}
+                        onSave={onSave}
+                        onDelete={onDelete}
+                        isSaving={isSaving}
+                        onEditNotes={openNotes}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Notes popup — editable large textarea */}
+      <Dialog open={!!notesDialog} onOpenChange={(v) => { if (!v) setNotesDialog(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-muted-foreground" />
+              Notes — {notesDialog?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            rows={8}
+            className="resize-none text-sm leading-relaxed"
+            placeholder="Add notes here…"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNotesDialog(null)}>Cancel</Button>
+            <Button onClick={saveNotes} disabled={isSaving}>Save notes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

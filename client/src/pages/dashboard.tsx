@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Link } from "wouter";
-import { Plane, Calendar, Trash2, MapPin, AlertTriangle, BellRing, CalendarClock, Mail, Thermometer, TrendingUp, TrendingDown, Newspaper, Download, Plus, ListTodo, RotateCcw, EyeOff, CheckCircle2, Users, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
+import { Plane, Calendar, Trash2, MapPin, AlertTriangle, BellRing, CalendarClock, Mail, Thermometer, TrendingUp, TrendingDown, Newspaper, Download, Plus, ListTodo, RotateCcw, EyeOff, CheckCircle2, Users, ChevronDown, ChevronRight, RefreshCw, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -858,6 +858,7 @@ function computeDeadlineNextDue(d: Deadline, today: Date): Date | null {
 function ExpiredDeadlines() {
   const { data: deadlines, isLoading } = useQuery<Deadline[]>({ queryKey: ["/api/deadlines"] });
   const [editing, setEditing] = useState<Deadline | null>(null);
+  const [viewNotes, setViewNotes] = useState<{ name: string; notes: string } | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<FormValues> }) => {
@@ -934,6 +935,15 @@ function ExpiredDeadlines() {
                   )}
                 </div>
                 <div className="shrink-0 flex items-center gap-2">
+                  {d.notes && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setViewNotes({ name: d.name, notes: d.notes! }); }}
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      title="View notes"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <span className="text-xs font-semibold text-destructive flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     {Math.abs(d.daysLeft!)}d overdue
@@ -961,6 +971,15 @@ function ExpiredDeadlines() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!viewNotes} onOpenChange={(v) => { if (!v) setViewNotes(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Info className="w-4 h-4 text-muted-foreground" />{viewNotes?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{viewNotes?.notes}</p>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -998,6 +1017,7 @@ function UpcomingDeadlines() {
     queryKey: ["/api/deadlines"],
   });
   const [editing, setEditing] = useState<Deadline | null>(null);
+  const [viewNotes, setViewNotes] = useState<{ name: string; notes: string } | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<FormValues> }) => {
@@ -1081,6 +1101,15 @@ function UpcomingDeadlines() {
                     </div>
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
+                    {d.notes && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setViewNotes({ name: d.name, notes: d.notes! }); }}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="View notes"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {overdue ? (
                       <span className="text-xs font-semibold text-destructive flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" />
@@ -1125,6 +1154,15 @@ function UpcomingDeadlines() {
         </CardContent>
       </Card>
 
+      <Dialog open={!!viewNotes} onOpenChange={(v) => { if (!v) setViewNotes(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Info className="w-4 h-4 text-muted-foreground" />{viewNotes?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{viewNotes?.notes}</p>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!editing} onOpenChange={(open) => { if (!open) setEditing(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1158,6 +1196,7 @@ function UpcomingDeadlines() {
 
 function NotPriorityDeadlines() {
   const [open, setOpen] = useState(false);
+  const [viewNotes, setViewNotes] = useState<{ name: string; notes: string } | null>(null);
   const { data: deadlines, isLoading } = useQuery<Deadline[]>({ queryKey: ["/api/deadlines"] });
 
   const restoreMutation = useMutation({
@@ -1232,18 +1271,38 @@ function NotPriorityDeadlines() {
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => restoreMutation.mutate(d.id)}
-                    className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                    title="Restore to active section"
-                    data-testid={`not-priority-dialog-restore-${d.id}`}
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {d.notes && (
+                      <button
+                        onClick={() => setViewNotes({ name: d.name, notes: d.notes! })}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="View notes"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => restoreMutation.mutate(d.id)}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      title="Restore to active section"
+                      data-testid={`not-priority-dialog-restore-${d.id}`}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!viewNotes} onOpenChange={(v) => { if (!v) setViewNotes(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Info className="w-4 h-4 text-muted-foreground" />{viewNotes?.name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{viewNotes?.notes}</p>
         </DialogContent>
       </Dialog>
     </>
