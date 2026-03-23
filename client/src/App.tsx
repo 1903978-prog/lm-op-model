@@ -37,7 +37,7 @@ function TopNav({ fontSize, onDecrease, onIncrease }: {
     <header className="flex items-center gap-4 px-4 h-12 border-b bg-card shrink-0">
       <div className="flex items-center gap-2 mr-4">
         <Plane className="w-4 h-4 text-primary" />
-        <span className="font-bold text-sm tracking-tight">TravelPrep</span>
+        <span className="font-bold text-sm tracking-tight">LM OP MODEL</span>
       </div>
 
       <nav className="flex items-center gap-1 flex-1">

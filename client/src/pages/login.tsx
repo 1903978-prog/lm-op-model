@@ -33,7 +33,7 @@ export default function Login({ onSuccess }: { onSuccess: () => void }) {
       <div className="w-full max-w-sm p-8 rounded-xl border bg-card shadow-sm">
         <div className="flex items-center gap-2 mb-8 justify-center">
           <Plane className="w-5 h-5 text-primary" />
-          <span className="font-bold text-lg tracking-tight">TravelPrep</span>
+          <span className="font-bold text-lg tracking-tight">LM OP MODEL</span>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input

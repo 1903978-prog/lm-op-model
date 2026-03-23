@@ -26,7 +26,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <div className="p-4 pb-2">
-          <h1 className="text-lg font-bold tracking-tight">TravelPrep</h1>
+          <h1 className="text-lg font-bold tracking-tight">LM OP MODEL</h1>
           <p className="text-xs text-muted-foreground">Life & Travel Manager</p>
         </div>
         <SidebarGroup>
