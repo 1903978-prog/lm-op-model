@@ -323,4 +323,22 @@ export async function seedDatabase() {
     ]);
     console.log("[seed] Inserted packing lists and items");
   }
+
+  // ── Data patches (run always, idempotent) ──────────────────────────────────
+  // Add "Entry Card" task for Thailand with passport/visa note if not present
+  const { eq, and, isNull } = await import("drizzle-orm");
+  const entryCardExists = await db.select().from(tasks).where(
+    and(eq(tasks.title, "Entry Card"), eq(tasks.destinationId, "52edfcc6-7149-4ad6-9fa1-f5dc8dacc0b2"))
+  );
+  if (entryCardExists.length === 0) {
+    await db.insert(tasks).values({
+      id: "b1e27c4a-9f3d-4e8b-a2f1-c0d5e6f7a8b9",
+      title: "Entry Card",
+      destinationId: "52edfcc6-7149-4ad6-9fa1-f5dc8dacc0b2",
+      isGlobal: false,
+      advanceDays: 30,
+      notes: "Passport: YB8762326\nExp: 22/6/2032\nVisa: NB335/68",
+    });
+    console.log("[seed] Inserted Entry Card task for Thailand");
+  }
 }

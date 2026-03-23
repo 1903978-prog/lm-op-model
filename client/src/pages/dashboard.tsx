@@ -107,6 +107,7 @@ function TodaysActions({ destinations }: { destinations: Destination[] }) {
   const { data: actionItems, isLoading } = useQuery<ActionableTask[]>({
     queryKey: ["/api/actionable-tasks"],
   });
+  const [viewNotes, setViewNotes] = useState<{ title: string; notes: string } | null>(null);
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
@@ -129,6 +130,7 @@ function TodaysActions({ destinations }: { destinations: Destination[] }) {
   });
 
   return (
+    <>
     <Card className="border-primary/20 bg-primary/5 mb-6" data-testid="card-todays-actions">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
@@ -181,6 +183,15 @@ function TodaysActions({ destinations }: { destinations: Destination[] }) {
                         {destination.name}
                       </Badge>
                     )}
+                    {item.task?.notes && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setViewNotes({ title: item.task!.title, notes: item.task!.notes! }); }}
+                        className="text-primary/70 hover:text-primary transition-colors"
+                        title="View notes"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">
                     {arrivalDate && (
@@ -210,6 +221,19 @@ function TodaysActions({ destinations }: { destinations: Destination[] }) {
         </div>
       </CardContent>
     </Card>
+
+    <Dialog open={!!viewNotes} onOpenChange={(v) => { if (!v) setViewNotes(null); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-muted-foreground" />
+            {viewNotes?.title}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{viewNotes?.notes}</p>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -219,6 +243,7 @@ function OverdueTripTasks({ destinations }: { destinations: Destination[] }) {
   const { data: actionItems, isLoading } = useQuery<ActionableTask[]>({
     queryKey: ["/api/actionable-tasks"],
   });
+  const [viewNotes, setViewNotes] = useState<{ title: string; notes: string } | null>(null);
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
@@ -243,6 +268,7 @@ function OverdueTripTasks({ destinations }: { destinations: Destination[] }) {
   if (overdue.length === 0) return null;
 
   return (
+    <>
     <Card className="border-orange-500/30 bg-orange-500/5" data-testid="card-overdue-tasks">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
@@ -280,6 +306,15 @@ function OverdueTripTasks({ destinations }: { destinations: Destination[] }) {
                         {dest.name}
                       </Badge>
                     )}
+                    {item.task?.notes && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setViewNotes({ title: item.task!.title, notes: item.task!.notes! }); }}
+                        className="text-primary/70 hover:text-primary transition-colors"
+                        title="View notes"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                   {item.trip && (
                     <span className="text-xs text-muted-foreground">
@@ -297,6 +332,19 @@ function OverdueTripTasks({ destinations }: { destinations: Destination[] }) {
         </div>
       </CardContent>
     </Card>
+
+    <Dialog open={!!viewNotes} onOpenChange={(v) => { if (!v) setViewNotes(null); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-muted-foreground" />
+            {viewNotes?.title}
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{viewNotes?.notes}</p>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

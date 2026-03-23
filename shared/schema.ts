@@ -22,6 +22,7 @@ export const tasks = pgTable("tasks", {
   advanceDays: integer("advance_days").notNull().default(0),
   seasonStart: integer("season_start"),
   seasonEnd: integer("season_end"),
+  notes: text("notes"),
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({ id: true });

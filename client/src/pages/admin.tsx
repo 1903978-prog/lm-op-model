@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +28,7 @@ import {
   X,
   Mail,
   RefreshCw,
+  Info,
 } from "lucide-react";
 
 function DestinationManager() {
@@ -392,7 +394,9 @@ function TaskManager() {
 function TaskRow({ task, onDelete }: { task: Task; onDelete: () => void }) {
   const { toast } = useToast();
   const [editingDays, setEditingDays] = useState(false);
-  const [daysValue, setDaysValue] = useState(String(task.advanceDays));
+  const [daysValue, setDaysValue]     = useState(String(task.advanceDays));
+  const [notesOpen, setNotesOpen]     = useState(false);
+  const [notesDraft, setNotesDraft]   = useState(task.notes ?? "");
 
   const updateMutation = useMutation({
     mutationFn: async (advanceDays: number) => {
@@ -402,6 +406,17 @@ function TaskRow({ task, onDelete }: { task: Task; onDelete: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setEditingDays(false);
       toast({ title: "Days updated" });
+    },
+  });
+
+  const notesMutation = useMutation({
+    mutationFn: async (notes: string) => {
+      await apiRequest("PATCH", `/api/tasks/${task.id}`, { notes: notes.trim() || null });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      setNotesOpen(false);
+      toast({ title: "Notes saved" });
     },
   });
 
@@ -417,6 +432,7 @@ function TaskRow({ task, onDelete }: { task: Task; onDelete: () => void }) {
   ];
 
   return (
+    <>
     <div
       className="flex items-center justify-between gap-3 p-3 rounded-md bg-muted/50"
       data-testid={`task-item-${task.id}`}
@@ -424,6 +440,14 @@ function TaskRow({ task, onDelete }: { task: Task; onDelete: () => void }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{task.title}</span>
+          <button
+            type="button"
+            onClick={() => { setNotesDraft(task.notes ?? ""); setNotesOpen(true); }}
+            title={task.notes ? "View / edit notes" : "Add notes"}
+            className={`transition-colors ${task.notes ? "text-primary hover:text-primary/80" : "text-muted-foreground/30 hover:text-muted-foreground"}`}
+          >
+            <Info className="w-3.5 h-3.5" />
+          </button>
           {editingDays ? (
             <div className="flex items-center gap-1">
               <Input
@@ -486,6 +510,31 @@ function TaskRow({ task, onDelete }: { task: Task; onDelete: () => void }) {
         <Trash2 className="w-4 h-4 text-muted-foreground" />
       </Button>
     </div>
+
+    <Dialog open={notesOpen} onOpenChange={(v) => { if (!v) setNotesOpen(false); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Info className="w-4 h-4 text-muted-foreground" />
+            Notes — {task.title}
+          </DialogTitle>
+        </DialogHeader>
+        <Textarea
+          value={notesDraft}
+          onChange={(e) => setNotesDraft(e.target.value)}
+          rows={7}
+          className="resize-none text-sm leading-relaxed"
+          placeholder="Add notes, reference numbers, instructions…"
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setNotesOpen(false)}>Cancel</Button>
+          <Button onClick={() => notesMutation.mutate(notesDraft)} disabled={notesMutation.isPending}>
+            Save notes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
