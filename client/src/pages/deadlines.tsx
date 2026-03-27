@@ -116,17 +116,19 @@ function computeAll(deadlines: Deadline[]): ComputedDeadline[] {
   });
 }
 
-function DeadlineTile({ d, onSnooze, onViewNotes }: {
+function DeadlineTile({ d, onSnooze, onViewNotes, onMarkDone }: {
   d: ComputedDeadline;
   onSnooze: (id: string) => void;
   onViewNotes: (name: string, notes: string) => void;
+  onMarkDone: (d: ComputedDeadline) => void;
 }) {
   const bucket = d.daysLeft! <= 7 ? "7" : d.daysLeft! <= 30 ? "30" : d.daysLeft! <= 60 ? "60" : "90";
   const style = bucketStyles[bucket as keyof typeof bucketStyles];
   return (
     <div
-      className={`border rounded-lg p-2.5 flex flex-col gap-1.5 ${style.border} ${style.bg}`}
+      className={`border rounded-lg p-2.5 flex flex-col gap-1.5 cursor-pointer hover:brightness-110 transition-all ${style.border} ${style.bg}`}
       data-testid={`upcoming-card-${d.id}`}
+      onClick={() => onMarkDone(d)}
     >
       {/* Top row: name + badge */}
       <div className="flex items-start justify-between gap-1.5">
@@ -150,11 +152,11 @@ function DeadlineTile({ d, onSnooze, onViewNotes }: {
       {/* Actions */}
       <div className="flex items-center gap-2 mt-auto pt-1 border-t border-white/5">
         {d.notes ? (
-          <button onClick={() => onViewNotes(d.name, d.notes!)} className="text-primary/70 hover:text-primary transition-colors" title="View notes">
+          <button onClick={(e) => { e.stopPropagation(); onViewNotes(d.name, d.notes!); }} className="text-primary/70 hover:text-primary transition-colors" title="View notes">
             <Info className="w-3.5 h-3.5" />
           </button>
         ) : <span className="w-3.5" />}
-        <button onClick={() => onSnooze(d.id)} className="ml-auto text-muted-foreground hover:text-green-600 transition-colors" title="Mark done / snooze 6 months" data-testid={`button-snooze-${d.id}`}>
+        <button onClick={(e) => { e.stopPropagation(); onSnooze(d.id); }} className="ml-auto text-muted-foreground hover:text-green-600 transition-colors" title="Snooze 6 months" data-testid={`button-snooze-${d.id}`}>
           <CheckCircle2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -162,12 +164,13 @@ function DeadlineTile({ d, onSnooze, onViewNotes }: {
   );
 }
 
-function BucketSection({ label, dot, items, onSnooze, onViewNotes }: {
+function BucketSection({ label, dot, items, onSnooze, onViewNotes, onMarkDone }: {
   label: string;
   dot: string;
   items: ComputedDeadline[];
   onSnooze: (id: string) => void;
   onViewNotes: (name: string, notes: string) => void;
+  onMarkDone: (d: ComputedDeadline) => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -179,20 +182,23 @@ function BucketSection({ label, dot, items, onSnooze, onViewNotes }: {
       </h2>
       <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {items.map((d) => (
-          <DeadlineTile key={d.id} d={d} onSnooze={onSnooze} onViewNotes={onViewNotes} />
+          <DeadlineTile key={d.id} d={d} onSnooze={onSnooze} onViewNotes={onViewNotes} onMarkDone={onMarkDone} />
         ))}
       </div>
     </section>
   );
 }
 
-function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
+function OverviewTab({ deadlines, onEdit, onDelete, onSnooze, onSave }: {
   deadlines: Deadline[];
   onEdit: (d: Deadline) => void;
   onDelete: (id: string) => void;
   onSnooze: (id: string) => void;
+  onSave: (id: string, data: Partial<InsertDeadline>) => void;
 }) {
   const [viewNotes, setViewNotes] = useState<{ name: string; notes: string } | null>(null);
+  const todayStr = format(new Date(), "yyyy-MM-dd");
+  const [markDone, setMarkDone] = useState<{ d: ComputedDeadline; date: string } | null>(null);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const computed = computeAll(deadlines);
@@ -228,10 +234,10 @@ function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
         <p className="text-sm text-muted-foreground">No deadlines in the next 90 days.</p>
       )}
 
-      <BucketSection label="Next 7 days"  dot={bucketStyles["7"].dot}  items={bucket7}  onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
-      <BucketSection label="Next 30 days" dot={bucketStyles["30"].dot} items={bucket30} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
-      <BucketSection label="Next 60 days" dot={bucketStyles["60"].dot} items={bucket60} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
-      <BucketSection label="Next 90 days" dot={bucketStyles["90"].dot} items={bucket90} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} />
+      <BucketSection label="Next 7 days"  dot={bucketStyles["7"].dot}  items={bucket7}  onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} onMarkDone={(d) => setMarkDone({ d, date: todayStr })} />
+      <BucketSection label="Next 30 days" dot={bucketStyles["30"].dot} items={bucket30} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} onMarkDone={(d) => setMarkDone({ d, date: todayStr })} />
+      <BucketSection label="Next 60 days" dot={bucketStyles["60"].dot} items={bucket60} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} onMarkDone={(d) => setMarkDone({ d, date: todayStr })} />
+      <BucketSection label="Next 90 days" dot={bucketStyles["90"].dot} items={bucket90} onSnooze={onSnooze} onViewNotes={(n, t) => setViewNotes({ name: n, notes: t })} onMarkDone={(d) => setMarkDone({ d, date: todayStr })} />
 
       {/* Missing dates */}
       {missing.length > 0 && (
@@ -342,6 +348,42 @@ function OverviewTab({ deadlines, onEdit, onDelete, onSnooze }: {
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{viewNotes?.notes}</p>
+      </DialogContent>
+    </Dialog>
+
+    {/* Mark as done dialog */}
+    <Dialog open={!!markDone} onOpenChange={(v) => { if (!v) setMarkDone(null); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-green-500" />
+            Mark as done
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm font-medium">{markDone?.d.name}</p>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Completion date</label>
+            <input
+              type="date"
+              value={markDone?.date ?? ""}
+              onChange={(e) => setMarkDone((prev) => prev ? { ...prev, date: e.target.value } : null)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setMarkDone(null)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              if (!markDone) return;
+              onSave(markDone.d.id, { lastDone: markDone.date });
+              setMarkDone(null);
+            }}
+          >
+            Save
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
     </>
@@ -778,6 +820,7 @@ export default function DeadlinesPage() {
                 deadlines={deadlineList}
                 onEdit={openEdit}
                 onDelete={(id) => deleteMutation.mutate(id)}
+                onSave={(id, data) => updateMutation.mutate({ id, data })}
                 onSnooze={(id) => {
                   const snoozedUntil = format(addMonths(new Date(), 6), "yyyy-MM-dd");
                   apiRequest("PATCH", `/api/deadlines/${id}`, { snoozedUntil }).then(() => {
