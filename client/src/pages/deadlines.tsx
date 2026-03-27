@@ -67,6 +67,16 @@ function computeNextDue(d: Deadline, today: Date): Date | null {
       due = new Date(today.getFullYear() + 1, month - 1, day);
       due.setHours(0, 0, 0, 0);
     }
+    // If lastDone is set, next due must be at least 1 year after lastDone
+    if (lastDone) {
+      const lastDoneDate = new Date(lastDone);
+      lastDoneDate.setHours(0, 0, 0, 0);
+      const minNext = addYears(lastDoneDate, 1);
+      if (due < minNext) {
+        due = new Date(minNext.getFullYear(), month - 1, day);
+        due.setHours(0, 0, 0, 0);
+      }
+    }
     return due;
   }
 
