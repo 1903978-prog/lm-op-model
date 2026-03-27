@@ -361,6 +361,7 @@ function TDLTile() {
   const [newPriority, setNewPriority] = useState<1 | 2 | 3>(1);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [groupOpen, setGroupOpen] = useState<Record<number, boolean>>({ 1: true, 2: true, 3: true });
+  const [viewTask, setViewTask] = useState<string | null>(null);
 
   const { data: tdlTasks, isLoading } = useQuery<TdlTask[]>({
     queryKey: ["/api/tdl-tasks"],
@@ -495,10 +496,12 @@ function TDLTile() {
                           data-testid={`tdl-task-row-${task.id}`}
                         >
                           <span
-                            className="flex-1 text-sm leading-snug min-w-0 break-words select-none"
+                            className="flex-1 text-sm leading-snug min-w-0 truncate select-none cursor-pointer hover:text-primary transition-colors"
                             data-testid={`tdl-task-title-${task.id}`}
+                            title={task.title}
+                            onClick={(e) => { e.stopPropagation(); setViewTask(task.title); }}
                           >
-                            {task.title}
+                            {task.title.split("\n")[0]}
                           </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}
@@ -548,8 +551,12 @@ function TDLTile() {
                       data-testid={`tdl-done-row-${task.id}`}
                     >
                       <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0 text-green-500" />
-                      <span className="flex-1 text-sm line-through leading-snug min-w-0 break-words select-none">
-                        {task.title}
+                      <span
+                        className="flex-1 text-sm line-through leading-snug min-w-0 truncate select-none cursor-pointer"
+                        title={task.title}
+                        onClick={(e) => { e.stopPropagation(); setViewTask(task.title); }}
+                      >
+                        {task.title.split("\n")[0]}
                       </span>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}
@@ -567,6 +574,15 @@ function TDLTile() {
         )}
       </CardContent>
     </Card>
+
+    <Dialog open={!!viewTask} onOpenChange={(v) => { if (!v) setViewTask(null); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-base">Task</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{viewTask}</p>
+      </DialogContent>
+    </Dialog>
   );
 }
 
