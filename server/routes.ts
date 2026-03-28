@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, db } from "./storage";
 import { insertDestinationSchema, insertTaskSchema, insertTripSchema, insertTripTaskSchema, insertDeadlineSchema, insertDeadlineCategorySchema, insertTdlTaskSchema, insertFriendSchema, insertPlaceSchema, insertPackingListSchema, insertPackingItemSchema, type InsertPackingItem } from "@shared/schema";
-import { deadlines, deadlineCategories, destinations, tasks, trips, tripTasks, tdlTasks } from "@shared/schema";
+import { deadlines, deadlineCategories, destinations, tasks, trips, tripTasks, tdlTasks, friends, places, packingLists, packingItems } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 async function applyMigrations() {
@@ -705,6 +705,48 @@ export async function registerRoutes(
   app.delete("/api/tdl-tasks/:id", async (_req, res) => {
     await storage.deleteTdlTask(_req.params.id);
     res.status(204).send();
+  });
+
+  app.get("/api/admin/backup", async (_req, res) => {
+    try {
+      const [
+        allDestinations, allTasks, allTrips, allTripTasks,
+        allDeadlines, allDeadlineCategories, allFriends, allPlaces,
+        allTdlTasks, allPackingLists, allPackingItems,
+      ] = await Promise.all([
+        db.select().from(destinations),
+        db.select().from(tasks),
+        db.select().from(trips),
+        db.select().from(tripTasks),
+        db.select().from(deadlines),
+        db.select().from(deadlineCategories),
+        db.select().from(friends),
+        db.select().from(places),
+        db.select().from(tdlTasks),
+        db.select().from(packingLists),
+        db.select().from(packingItems),
+      ]);
+      const backup = {
+        exportedAt: new Date().toISOString(),
+        destinations: allDestinations,
+        tasks: allTasks,
+        trips: allTrips,
+        tripTasks: allTripTasks,
+        deadlines: allDeadlines,
+        deadlineCategories: allDeadlineCategories,
+        friends: allFriends,
+        places: allPlaces,
+        tdlTasks: allTdlTasks,
+        packingLists: allPackingLists,
+        packingItems: allPackingItems,
+      };
+      const filename = `lm-op-model-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.setHeader("Content-Type", "application/json");
+      res.send(JSON.stringify(backup, null, 2));
+    } catch (err) {
+      res.status(500).json({ error: String(err) });
+    }
   });
 
   app.post("/api/admin/force-reseed", async (_req, res) => {

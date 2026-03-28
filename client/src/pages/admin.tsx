@@ -29,6 +29,8 @@ import {
   Mail,
   RefreshCw,
   Info,
+  Download,
+  Code2,
 } from "lucide-react";
 
 function DestinationManager() {
@@ -1014,7 +1016,27 @@ export default function Admin() {
               Manage your destinations and configure tasks for each location
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("https://github.com/1903978-prog/lm-op-model/archive/refs/heads/master.zip")}
+              className="shrink-0 gap-2"
+              title="Download source code as ZIP"
+            >
+              <Code2 className="w-4 h-4" />
+              Download code
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = "/api/admin/backup"}
+              className="shrink-0 gap-2"
+              title="Download all data as JSON backup"
+            >
+              <Download className="w-4 h-4" />
+              Download backup
+            </Button>
             <Button
               variant="outline"
               size="sm"
