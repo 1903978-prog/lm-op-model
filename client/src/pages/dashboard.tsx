@@ -396,6 +396,7 @@ function TDLTile() {
   const doneTasks = allTasks.filter((t) => t.done);
 
   return (
+    <>
     <Card className="flex flex-col" data-testid="card-tdl">
       <CardHeader className="pb-2 shrink-0">
         <CardTitle className="flex items-center gap-2 text-base">
@@ -583,6 +584,7 @@ function TDLTile() {
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{viewTask}</p>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
 
