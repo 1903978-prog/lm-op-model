@@ -86,7 +86,7 @@ export type Deadline = typeof deadlines.$inferSelect;
 export const friends = pgTable("friends", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  lastSpoke: date("last_spoke").notNull().default("2023-12-01"),
+  lastSpoke: date("last_spoke").notNull().default(sql`CURRENT_DATE`),
   location: text("location"),
   keepInTouch: boolean("keep_in_touch").notNull().default(true),
 });

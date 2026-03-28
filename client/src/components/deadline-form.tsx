@@ -112,6 +112,11 @@ export function DayMonthPicker({
 
   function pickMonth(m: number) {
     onMonthChange(m);
+    // Clamp day if it exceeds the max days for the selected month
+    if (day !== undefined) {
+      const maxDay = new Date(displayYear, m, 0).getDate(); // day 0 of next month = last day of this month
+      if (day > maxDay) onDayChange(maxDay);
+    }
     setStep("year");
   }
 

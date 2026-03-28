@@ -52,6 +52,7 @@ function DestinationManager() {
       setDialogOpen(false);
       toast({ title: "Destination added" });
     },
+    onError: (err: Error) => toast({ title: "Failed to add destination", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -63,6 +64,7 @@ function DestinationManager() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ title: "Destination removed" });
     },
+    onError: (err: Error) => toast({ title: "Failed to remove destination", description: err.message, variant: "destructive" }),
   });
 
   return (
@@ -193,6 +195,7 @@ function TaskManager() {
       setDialogOpen(false);
       toast({ title: "Task added" });
     },
+    onError: (err: Error) => toast({ title: "Failed to add task", description: err.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
@@ -203,6 +206,7 @@ function TaskManager() {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({ title: "Task removed" });
     },
+    onError: (err: Error) => toast({ title: "Failed to remove task", description: err.message, variant: "destructive" }),
   });
 
   const months = [
